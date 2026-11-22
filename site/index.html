@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spectre, the referee for self-improving AI</title>
+<meta name="description" content="Agents that improve themselves grade their own work. Spectre checks every claim before it ships.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --space: #03050b; --ink: #eef1f6; --ink-2: #a9b1c2; --ink-3: #6d7588; --line: rgba(255,255,255,.09);
+  --glass: rgba(10,14,26,.6); --good: #5fd39a; --bad: #ff7a59; --blue: #9cc3ff; --gold: #ffc56b;
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--space); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+a { color: inherit; }
+em { font-family: var(--serif); font-style: italic; font-weight: 400; }
+canvas, svg { display: block; }
+
+/* sky */
+#sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -3; }
+.planet { position: fixed; border-radius: 50%; z-index: -2; pointer-events: none; will-change: transform; }
+.giant { width: 62vmax; height: 62vmax; right: -24vmax; top: 34vh;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255,255,255,.16), transparent 42%),
+    repeating-linear-gradient(-14deg, rgba(196,134,92,.0) 0 2.2%, rgba(196,134,92,.28) 2.2% 3.6%, rgba(120,72,52,.22) 3.6% 5.8%, rgba(232,196,150,.18) 5.8% 7%),
+    radial-gradient(circle at 35% 35%, #c99a72, #7a4a33 52%, #26140d 74%);
+  box-shadow: 0 0 14vmax rgba(214,140,90,.08); opacity: .62; }
+.giant::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 28% 26%, rgba(255,236,210,.22), transparent 30%),
+              radial-gradient(circle at 34% 32%, transparent 38%, rgba(3,5,11,.55) 58%, rgba(3,5,11,.96) 74%); }
+.giant::after { content: ""; position: absolute; inset: -18%; border-radius: 50%; border: 1px solid rgba(230,200,170,.10);
+  transform: rotate(-14deg) scaleY(.22); box-shadow: 0 0 0 1.4vmax rgba(230,200,170,.05); }
+.rock { width: 9vmax; height: 9vmax; left: 4vw; top: 118vh;
+  background: radial-gradient(circle at 32% 30%, #b9c7d8, #5a6b83 45%, #141b27 75%);
+  box-shadow: inset -2.2vmax -1.4vmax 2.4vmax rgba(0,0,0,.85); opacity: .55; }
+.ice { width: 4.2vmax; height: 4.2vmax; left: 70vw; top: 22vh;
+  background: radial-gradient(circle at 32% 30%, #d6f1ff, #5f9fc4 50%, #0c2233 78%);
+  box-shadow: inset -1vmax -.7vmax 1.1vmax rgba(0,0,0,.8), 0 0 2vmax rgba(127,178,255,.18); opacity: .8; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10; backdrop-filter: blur(10px); background: rgba(3,5,11,.45); border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.logo { font-weight: 600; letter-spacing: .02em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo i { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #7fb2ff 45%, #1b3a7a); box-shadow: 0 0 12px rgba(127,178,255,.6); }
+nav .links { display: flex; gap: 26px; font-size: 14px; color: var(--ink-2); }
+nav .links a { text-decoration: none; } nav .links a:hover { color: var(--ink); }
+
+section { padding: 130px 0; position: relative; }
+.hero { min-height: 100vh; display: flex; align-items: center; padding-top: 90px; }
+h1 { font: 500 clamp(52px, 8.4vw, 112px)/.95 var(--sans); letter-spacing: -.035em; margin: 0 0 26px; }
+h1 em { letter-spacing: -.01em; color: #cfe0ff; }
+.sub { font-size: clamp(18px, 2vw, 22px); color: var(--ink-2); max-width: 640px; margin: 0 0 36px; font-weight: 300; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; height: 46px; padding: 0 22px; border-radius: 999px; font-weight: 500; font-size: 15px; text-decoration: none; transition: transform .15s, background .15s; border: 0; cursor: pointer; font-family: var(--sans); }
+.btn.solid { background: var(--ink); color: var(--space); } .btn.solid:hover { transform: translateY(-1px); }
+.btn.line { border: 1px solid rgba(255,255,255,.22); background: transparent; color: var(--ink); } .btn.line:hover { background: rgba(255,255,255,.06); }
+
+h2 { font: 500 clamp(34px, 4.6vw, 58px)/1.04 var(--sans); letter-spacing: -.03em; margin: 0 0 18px; max-width: 860px; }
+.lead { color: var(--ink-2); font-size: 19px; font-weight: 300; max-width: 680px; margin: 0 0 48px; }
+.stage { position: relative; border-radius: 22px; border: 1px solid var(--line);
+  background: radial-gradient(120% 140% at 0% 0%, rgba(60,90,170,.10), transparent 55%), rgba(6,9,18,.66); backdrop-filter: blur(16px); overflow: hidden; }
+
+/* result gauge */
+.gauge { padding: 30px 30px 18px; }
+.gauge svg { width: 100%; height: auto; overflow: visible; }
+.gauge text { font-family: var(--sans); }
+.gauge-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 0 30px 26px; flex-wrap: wrap; }
+.phase { font-size: 15px; color: var(--ink-2); min-height: 24px; transition: opacity .3s; }
+.phase b { color: var(--ink); font-weight: 500; }
+.replay { height: 36px; font-size: 13.5px; padding: 0 16px; }
+.footnote { color: var(--ink-3); font-size: 13.5px; margin-top: 16px; max-width: 900px; }
+.footnote a { color: var(--ink-2); }
+
+/* gates pipeline */
+.pipe canvas { width: 100%; height: 320px; }
+.gate-row { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); }
+.gate-row div { padding: 18px 16px 22px; text-align: center; border-left: 1px solid var(--line); }
+.gate-row div:first-child { border-left: 0; }
+.gate-row b { display: block; font-weight: 600; letter-spacing: .08em; font-size: 13.5px; color: #cfe0ff; }
+.gate-row em { display: block; font-size: 18px; margin: 2px 0 6px; }
+.gate-row span { color: var(--ink-3); font-size: 13.5px; line-height: 1.45; display: block; }
+
+/* proof */
+.proof { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; }
+.panel { padding: 26px 26px 24px; }
+.panel h3 { font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin: 0 0 6px; line-height: 1.25; }
+.panel .cap { color: var(--ink-2); font-size: 15px; margin: 0 0 16px; }
+.panel canvas { width: 100%; }
+#transit { height: 250px; }
+#spectrum { height: 250px; }
+.stamps { margin-top: 18px; display: grid; gap: 2px; }
+.stamp { display: grid; grid-template-columns: 112px 1fr; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line);
+  opacity: 0; transform: translateX(-10px); transition: opacity .5s ease, transform .5s ease; }
+.stamp.on { opacity: 1; transform: none; }
+.stamp strong { font-weight: 600; letter-spacing: .08em; font-size: 13px; transform-origin: left center; }
+.stamp.on strong { animation: thump .5s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes thump { 0% { transform: scale(1.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.stamp span { color: var(--ink-2); font-size: 14.5px; }
+.s-good { color: var(--good); } .s-bad { color: var(--bad); } .s-mid { color: var(--blue); }
+.counter { font: 500 clamp(54px, 6vw, 76px)/1 var(--sans); letter-spacing: -.035em; margin: 18px 0 6px; font-variant-numeric: tabular-nums; }
+.counter small { font-size: .42em; color: var(--ink-3); letter-spacing: 0; }
+
+.honest { text-align: center; padding: 110px 0 140px; }
+.honest h2 { margin: 0 auto 18px; }
+.honest .lead { margin: 0 auto 36px; }
+.honest .cta { justify-content: center; }
+footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--ink-3); font-size: 13.5px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s ease, transform .8s ease; }
+.reveal.in { opacity: 1; transform: none; }
+@media (max-width: 900px) {
+  .proof { grid-template-columns: 1fr; }
+  .gate-row { grid-template-columns: repeat(5, 1fr); } .gate-row span { display: none; } .gate-row em { font-size: 14px; }
+  .gate-row div { padding: 14px 4px 16px; } .gate-row b { font-size: 11px; letter-spacing: .04em; }
+  nav .links { display: none; }
+  .giant { right: -70vmax; top: 58vh; opacity: .45; } .ice { left: 78vw; }
+}
+@media (prefers-reduced-motion: reduce) { .reveal, .stamp { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="planet giant" data-depth="0.18" aria-hidden="true"></div>
+<div class="planet rock" data-depth="0.45" aria-hidden="true"></div>
+<div class="planet ice" data-depth="0.3" aria-hidden="true"></div>
+
+<nav><div class="wrap">
+  <a class="logo" href="#"><i></i>Spectre</a>
+  <div class="links"><a href="#result">Result</a><a href="#referee">Referee</a><a href="#proof">Proof</a><a href="https://github.com/VolodymyrLinuxovich/spectre">GitHub</a></div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <h1>Self&#8209;improving AI <em>grades its own work.</em></h1>
+  <p class="sub">Spectre is the referee. Every claim an agent makes is checked against data it never saw before it ships. We ran it on molecules and on planets.</p>
+  <div class="cta"><a class="btn solid" href="#result">See the result</a><a class="btn line" href="compare.html">Open the live chart</a></div>
+</div></header>
+
+<section id="result"><div class="wrap">
+  <h2 class="reveal">Same agents. Same data. <em>One loop has a referee.</em></h2>
+  <p class="lead reveal">Claude agents spent an afternoon improving a model that tells real exoplanets from false positives in Kepler telescope data. Watch what each loop believes, then what survives contact with new candidates.</p>
+  <div class="stage reveal">
+    <div class="gauge"><svg id="gauge" viewBox="0 0 1000 300" role="img" aria-label="Believed versus real AUC for each loop"></svg></div>
+    <div class="gauge-foot"><div class="phase" id="phase">&nbsp;</div><button class="btn line replay" id="replay">Run it again</button></div>
+  </div>
+  <p class="footnote reveal">ROC AUC on 1,505 Kepler Objects of Interest around 1,328 held&#8209;out stars, with the columns that encode the answer removed. Data from the NASA Exoplanet Archive. <a href="compare.html">Every claim, charted</a>.</p>
+</div></section>
+
+<section id="referee"><div class="wrap">
+  <h2 class="reveal">Every claim runs the gauntlet. <em>Most don't make it.</em></h2>
+  <p class="lead reveal">Agents never see a label and their code runs sealed. Spectre is the only process that reads the answers. The first gate a claim fails is its verdict.</p>
+  <div class="stage pipe reveal">
+    <canvas id="pipe" aria-label="Claims flowing through five gates"></canvas>
+    <div class="gate-row">
+      <div><b>CRASH</b><em>Did it run?</em><span>Sealed sandbox, must finish</span></div>
+      <div><b>NOISE</b><em>More than luck?</em><span>Three seeds, gain beyond seed noise</span></div>
+      <div><b>LEAK</b><em>Learned at all?</em><span>Still wins on shuffled labels? Caught</span></div>
+      <div><b>PRIOR</b><em>Reads the data?</em><span>Still wins with the light curve blanked? Caught</span></div>
+      <div><b>OVERFIT</b><em>Holds out of sight?</em><span>Must hold on stars no agent has seen</span></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="proof"><div class="wrap">
+  <h2 class="reveal">Two sciences. <em>Real traps in both.</em></h2>
+  <p class="lead reveal">We did not plant the hard cases. The public datasets ship them.</p>
+  <div class="proof">
+    <div class="stage panel reveal">
+      <h3>An agent rediscovered how astronomers vet planets.</h3>
+      <p class="cap">Both dips look the same. When a background binary is to blame, the light's center shifts during the dip.</p>
+      <canvas id="transit" aria-label="A planet transit next to a background binary that shifts the light centroid"></canvas>
+      <div class="stamps" id="stamps">
+        <div class="stamp"><strong class="s-good">PROMOTED</strong><span>Centroid shift. +0.016 AUC on hidden stars</span></div>
+        <div class="stamp"><strong class="s-good">PROMOTED</strong><span>Transit density must match the star</span></div>
+        <div class="stamp"><strong class="s-bad">LEAK</strong><span>Catalog name. 0.999 on shuffled labels</span></div>
+        <div class="stamp"><strong class="s-bad">PRIOR</strong><span>Archive vetting score. 0.999 with no light curve</span></div>
+        <div class="stamp"><strong class="s-mid">OVERFIT</strong><span>Stacked boosting. Gone on hidden stars</span></div>
+      </div>
+    </div>
+    <div class="stage panel reveal">
+      <h3>Molecules from mass spectra.</h3>
+      <p class="cap">MassSpecGym, DeepMind award at the SF AI Research Hackathon.</p>
+      <canvas id="spectrum" aria-label="A mass spectrum drawing in"></canvas>
+      <div class="counter" id="count">0 <small>of 4,000</small></div>
+      <p class="cap">validation spectra list the true molecule first. An agent that notices scores a perfect 1.00 and learns nothing. Spectre reshuffles candidates and keeps labels sealed.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="honest"><div class="wrap">
+  <h2 class="reveal">We check the checker <em>too.</em></h2>
+  <p class="lead reveal">Today we found two false&#8209;positive bugs in our own gates and fixed them. We re&#8209;judged three claims in the open, and nothing was erased.</p>
+  <div class="cta reveal"><a class="btn solid" href="https://github.com/VolodymyrLinuxovich/spectre">Read the code</a><a class="btn line" href="compare.html">See every verdict</a></div>
+</div></section>
+
+<footer><div class="wrap">
+  <span>Spectre at Sundai, November 22, 2026</span>
+  <span>Data from the NASA Exoplanet Archive and MassSpecGym. Not affiliated with NASA.</span>
+</div></footer>
+
+<script>
+"use strict";
+const STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const DPR = Math.min(devicePixelRatio || 1, 2);
+function fit(c) { const r = c.getBoundingClientRect(); c.width = r.width * DPR; c.height = r.height * DPR; const x = c.getContext("2d"); x.setTransform(DPR, 0, 0, DPR, 0, 0); return { x, w: r.width, h: r.height }; }
+function whenSeen(el, fn, th) { const o = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { fn(); o.disconnect(); } }), { threshold: th || .35 }); o.observe(el); }
+const ease = t => 1 - Math.pow(1 - t, 3);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ---------- sky ---------- */
+(function () {
+  const c = document.getElementById("sky"), x = c.getContext("2d");
+  let W, H, stars = [];
+  function size() {
+    W = c.width = innerWidth * DPR; H = c.height = innerHeight * DPR;
+    c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px";
+    stars = Array.from({ length: Math.round(innerWidth * innerHeight / 2600) }, () => ({ x: Math.random() * W, y: Math.random() * H * 1.6,
+      r: (Math.random() ** 3 * 1.6 + .25) * DPR, a: Math.random() * .7 + .25, t: Math.random() * 6.28, s: Math.random() * .02 + .004,
+      d: Math.random() * .5 + .05, hue: Math.random() < .12 ? "200,220,255" : Math.random() < .06 ? "255,220,190" : "255,255,255" }));
+  }
+  function draw() {
+    x.clearRect(0, 0, W, H);
+    const g = x.createRadialGradient(W * .15, H * .1, 0, W * .15, H * .1, W * .7);
+    g.addColorStop(0, "rgba(40,60,120,.18)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const sy = scrollY * DPR;
+    for (const s of stars) {
+      s.t += s.s;
+      const y = ((s.y - sy * s.d) % (H * 1.6) + H * 1.6) % (H * 1.6); if (y > H) continue;
+      x.globalAlpha = s.a * (.65 + .35 * Math.sin(s.t)); x.fillStyle = `rgb(${s.hue})`;
+      x.beginPath(); x.arc(s.x, y, s.r, 0, 6.283); x.fill();
+    }
+    x.globalAlpha = 1; if (!STILL) requestAnimationFrame(draw);
+  }
+  addEventListener("resize", size); size(); draw();
+  if (STILL) addEventListener("scroll", draw, { passive: true });
+  const ps = [...document.querySelectorAll(".planet")];
+  addEventListener("scroll", () => ps.forEach(p => p.style.transform = `translateY(${-scrollY * p.dataset.depth}px)`), { passive: true });
+})();
+
+/* ---------- numbers from the run ---------- */
+const R = { start: 0.978, naiveBelief: 0.9999, naiveReal: 0.902, guardSteps: [0.9717, 0.9946, 0.9957], guardReal: 0.995 };
+const dataReady = fetch("data.json").then(r => r.json()).then(d => {
+  if (d.reality) { R.naiveReal = d.reality.naive; R.guardReal = d.reality.guarded; R.start = d.reality.baseline; }
+  const nt = d.naive && d.naive.timeline; if (nt && nt.length) R.naiveBelief = nt[nt.length - 1].auc;
+  const gt = d.guarded && d.guarded.timeline; if (gt && gt.length > 1) R.guardSteps = gt.slice(1).map(p => p.auc);
+}).catch(() => {});
+
+/* ---------- result gauge ---------- */
+(function () {
+  const svg = document.getElementById("gauge"), phase = document.getElementById("phase");
+  const NS = "http://www.w3.org/2000/svg";
+  const lo = 0.88, hi = 1.0;
+  let M, L, Rr, F, Y1, Y2, VH;
+  function geo() {
+    M = svg.getBoundingClientRect().width < 640;
+    L = M ? 30 : 150; Rr = M ? 700 : 860; F = M ? 2.6 : 1;
+    Y1 = M ? 230 : 104; Y2 = M ? 500 : 206; VH = M ? 700 : 300;
+    svg.setAttribute("viewBox", `0 0 1000 ${VH}`);
+  }
+  const X = v => L + (Rr - L) * (v - lo) / (hi - lo);
+  const el = (t, a, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; };
+  let rows, scan, timer = [];
+  function build() {
+    geo(); svg.innerHTML = "";
+    const defs = el("defs", {});
+    defs.innerHTML = `<filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <linearGradient id="scanG" x1="0" x2="1"><stop offset="0" stop-color="#9cc3ff" stop-opacity="0"/><stop offset=".8" stop-color="#9cc3ff" stop-opacity=".22"/><stop offset="1" stop-color="#cfe0ff" stop-opacity=".9"/></linearGradient>`;
+    const top = M ? 120 : 40, bot = VH - (M ? 70 : 38);
+    for (let v = 0.88; v <= 1.0001; v += M ? 0.04 : 0.02) {
+      el("line", { x1: X(v), x2: X(v), y1: top, y2: bot, stroke: "rgba(255,255,255,.07)" });
+      el("text", { x: X(v), y: bot + 24 * F, "font-size": 12 * F, fill: "#6d7588", "text-anchor": "middle" }).textContent = v.toFixed(2);
+    }
+    el("line", { x1: X(R.start), x2: X(R.start), y1: top - 10, y2: bot, stroke: "rgba(255,255,255,.28)", "stroke-dasharray": "3 4" });
+    el("text", { x: X(R.start), y: top - 18, "font-size": 12 * F, fill: "#a9b1c2", "text-anchor": M ? "end" : "middle" }).textContent = `start ${R.start.toFixed(3)}`;
+    scan = el("rect", { x: L - 120, y: top - 4, width: 120, height: bot - top + 8, fill: "url(#scanG)", opacity: 0 });
+    rows = [["naive", "Without a referee", Y1, "#ff7a59"], ["guard", "With Spectre", Y2, "#5fd39a"]].map(([k, name, y, col]) => {
+      if (M) el("text", { x: L, y: y - 46, "font-size": 15 * F, fill: "#eef1f6", "font-weight": 500 }).textContent = name;
+      else el("text", { x: 0, y: y + 5, "font-size": 15, fill: "#eef1f6", "font-weight": 500 }).textContent = name;
+      el("line", { x1: L, x2: Rr, y1: y, y2: y, stroke: "rgba(255,255,255,.12)", "stroke-width": 2 * (M ? 2 : 1) });
+      const trail = el("line", { x1: X(R.start), x2: X(R.start), y1: y, y2: y, stroke: col, "stroke-width": 3 * (M ? 2 : 1), "stroke-linecap": "round", opacity: .55 });
+      const ghost = el("circle", { cx: X(R.start), cy: y, r: 9 * (M ? 2 : 1), fill: "none", stroke: "#eef1f6", "stroke-width": 1.5, "stroke-dasharray": "3 3", opacity: 0 });
+      const ghostT = el("text", { x: X(R.start), y: y - 22 * (M ? 2.2 : 1), "font-size": 12 * F, fill: "#a9b1c2", "text-anchor": "middle", opacity: 0 });
+      const dot = el("circle", { cx: X(R.start), cy: y, r: 9 * (M ? 2 : 1), fill: "#eef1f6", filter: "url(#glow)" });
+      const val = el("text", { x: Rr + 30 * (M ? .8 : 1), y: y + 12 * F, "font-size": 34 * (M ? 2.2 : 1), fill: "#eef1f6", "font-weight": 500, "letter-spacing": "-1" });
+      val.textContent = R.start.toFixed(3);
+      const tag = el("text", { x: M ? L : Rr + 31, y: M ? y + 62 : y + 32, "font-size": 12 * F, fill: "#6d7588" }); tag.textContent = "believes";
+      return { k, y, col, trail, ghost, ghostT, dot, val, tag, v: R.start };
+    });
+  }
+  function move(r, to, ms, digits, done) {
+    const from = r.v, t0 = performance.now();
+    (function f(now) {
+      const t = Math.min(1, (now - t0) / ms), v = lerp(from, to, ease(t));
+      r.v = v; r.dot.setAttribute("cx", X(v)); r.trail.setAttribute("x2", X(v)); r.val.textContent = v.toFixed(digits || 3);
+      if (t < 1) requestAnimationFrame(f); else if (done) done();
+    })(t0);
+  }
+  const at = (ms, fn) => timer.push(setTimeout(fn, ms));
+  function say(h) { phase.style.opacity = 0; at(180, () => { phase.innerHTML = h; phase.style.opacity = 1; }); }
+  function play() {
+    timer.forEach(clearTimeout); timer = []; build();
+    const [n, g] = rows;
+    say("Both loops start from the same model.");
+    at(900, () => { say("<b>Without a referee</b>, an agent reads the catalog name. Accepted in its first minute."); move(n, R.naiveBelief, 900, 4); });
+    R.guardSteps.forEach((v, i) => at(1700 + i * 900, () => { if (i === 0) say("<b>With Spectre</b>, that cheat dies at LEAK. Real physics gets promoted, one verified step at a time."); move(g, v, 700, 4); }));
+    const T = 1700 + R.guardSteps.length * 900 + 600;
+    at(T, () => {
+      say("Now score both on <b>new candidates</b>, the way a real discovery arrives.");
+      scan.setAttribute("opacity", 1); const t0 = performance.now();
+      (function f(now) { const t = Math.min(1, (now - t0) / 1300); scan.setAttribute("x", lerp(L - 120, Rr + 10, ease(t))); if (t < 1) requestAnimationFrame(f); else scan.setAttribute("opacity", 0); })(t0);
+    });
+    at(T + 1400, () => {
+      for (const r of rows) {
+        r.ghost.setAttribute("cx", X(r.v)); r.ghost.setAttribute("opacity", .7);
+        r.ghostT.setAttribute("x", X(r.v)); r.ghostT.textContent = "believed"; r.ghostT.setAttribute("opacity", r.k === "naive" ? 1 : 0);
+        r.tag.textContent = "on new candidates";
+      }
+      move(n, R.naiveReal, 1100, 3, () => { n.dot.setAttribute("fill", n.col); n.val.setAttribute("fill", n.col); });
+      move(g, R.guardReal, 700, 3, () => { g.dot.setAttribute("fill", g.col); g.val.setAttribute("fill", g.col); });
+      svg.animate([{ transform: "translateX(0)" }, { transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "translateX(0)" }], { duration: 260, delay: 900 });
+    });
+    at(T + 2800, () => say(`The unchecked loop fell <b>below where it started</b>. Spectre's model held at <b>${R.guardReal.toFixed(3)}</b>.`));
+  }
+  document.getElementById("replay").addEventListener("click", play);
+  dataReady.then(() => { build(); whenSeen(svg, play, .3); });
+  let lastM = null; addEventListener("resize", () => { const m = svg.getBoundingClientRect().width < 640; if (m !== lastM && lastM !== null) play(); lastM = m; });
+})();
+
+/* ---------- gates pipeline ---------- */
+(function () {
+  const c = document.getElementById("pipe"); let g = fit(c);
+  addEventListener("resize", () => g = fit(c));
+  const CLAIMS = [
+    { t: "catalog name", fate: 2, v: "LEAK" }, { t: "320 trees", fate: 1, v: "NOISE" },
+    { t: "centroid shift", fate: 5, v: "PROMOTED" }, { t: "vetting score", fate: 3, v: "PRIOR" },
+    { t: "stacked boosting", fate: 4, v: "OVERFIT" }, { t: "broken import", fate: 0, v: "CRASH" },
+    { t: "stellar density", fate: 5, v: "PROMOTED" }, { t: "lucky seed", fate: 1, v: "NOISE" },
+  ];
+  const gx = i => g.w * (i + .5) / 5;
+  let orbs = [], sparks = [], flashes = [0, 0, 0, 0, 0], labels = [], k = 0, last = 0, promoted = 0, running = false;
+  function spawn() { const d = CLAIMS[k++ % CLAIMS.length]; orbs.push({ ...d, x: -20, y: g.h * .52 + (Math.random() - .5) * 26, sp: g.w / 300, dead: false, done: false }); }
+  function frame(now) {
+    const { x, w, h } = g;
+    if (!last) last = now; const dt = Math.min(48, now - last); last = now;
+    if (!orbs.length || orbs[orbs.length - 1].x > w * .2) spawn();
+    x.clearRect(0, 0, w, h);
+    // gates
+    for (let i = 0; i < 5; i++) {
+      const cx = gx(i), f = flashes[i]; flashes[i] = Math.max(0, f - dt / 600);
+      const col = f > 0 ? (flashes[i + 5] === "bad" ? `rgba(255,122,89,${.25 + f * .75})` : `rgba(95,211,154,${.2 + f * .6})`) : "rgba(156,195,255,.28)";
+      const ry = h * .33, sx = Math.min(.32, (w / 5) * .3 / ry);
+      x.save(); x.translate(cx, h * .52); x.scale(sx, 1);
+      x.lineWidth = 3 / sx; x.strokeStyle = col; x.shadowColor = col; x.shadowBlur = 18 + f * 30;
+      x.beginPath(); x.arc(0, 0, ry, 0, 6.283); x.stroke(); x.restore();
+    }
+    // orbs
+    for (const o of orbs) {
+      if (o.dead) continue;
+      const nextGate = [0, 1, 2, 3, 4].find(i => gx(i) > o.x - 1);
+      if (!o.done) {
+        o.x += o.sp * dt / 4;
+        if (o.fate < 5 && o.x >= gx(o.fate)) {
+          o.dead = true; flashes[o.fate] = 1; flashes[o.fate + 5] = "bad";
+          for (let s = 0; s < 26; s++) { const a = Math.random() * 6.283, v = Math.random() * 2.4 + .6; sparks.push({ x: gx(o.fate), y: o.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, l: 1 }); }
+          labels.push({ x: gx(o.fate), y: h * .52 - h * .33 - 12, t: o.v, c: "#ff7a59", l: 1 });
+          continue;
+        }
+        if (nextGate !== undefined && Math.abs(o.x - gx(nextGate)) < o.sp * dt / 4 + .5 && nextGate < o.fate) { flashes[nextGate] = .7; flashes[nextGate + 5] = "good"; }
+        if (o.fate === 5 && o.x > w - 46) { o.done = true; o.t0 = now; promoted++; labels.push({ x: w - 50, y: o.y - 20, t: "PROMOTED", c: "#5fd39a", l: 1, low: true }); }
+      }
+      const good = o.fate === 5 && o.x > gx(4);
+      const pulse = o.done ? 1 + .25 * Math.sin((now - o.t0) / 120) : 1;
+      if (o.done && now - o.t0 > 1400) { o.dead = true; continue; }
+      x.shadowColor = good ? "#5fd39a" : "#9cc3ff"; x.shadowBlur = 22;
+      x.fillStyle = good ? "#5fd39a" : "#eef1f6";
+      x.beginPath(); x.arc(o.x, o.y, 6.5 * pulse, 0, 6.283); x.fill(); x.shadowBlur = 0;
+      x.globalAlpha = .9; x.fillStyle = "#a9b1c2"; x.font = `500 ${w < 600 ? 10.5 : 12.5}px Geist, sans-serif`; x.textAlign = "center";
+      const tw = x.measureText(o.t).width / 2; x.fillText(o.t, Math.max(tw + 4, Math.min(w - tw - 4, o.x)), o.y + 26); x.globalAlpha = 1;
+      // comet tail
+      const tail = x.createLinearGradient(o.x - 60, 0, o.x, 0); tail.addColorStop(0, "rgba(156,195,255,0)"); tail.addColorStop(1, good ? "rgba(95,211,154,.5)" : "rgba(156,195,255,.45)");
+      x.strokeStyle = tail; x.lineWidth = 3; x.beginPath(); x.moveTo(o.x - 60, o.y); x.lineTo(o.x - 7, o.y); x.stroke();
+    }
+    orbs = orbs.filter(o => !o.dead || o.x < 0);
+    for (const s of sparks) { s.x += s.vx * dt / 8; s.y += s.vy * dt / 8; s.l -= dt / 700; x.globalAlpha = Math.max(0, s.l); x.fillStyle = "#ff7a59"; x.fillRect(s.x, s.y, 2.4, 2.4); }
+    sparks = sparks.filter(s => s.l > 0); x.globalAlpha = 1;
+    for (const l of labels) { l.l -= dt / 1500; l.y = l.low ? l.y - dt / 400 : Math.max(16, l.y - dt / 160); x.font = "600 13px Geist, sans-serif"; const lw = x.measureText(l.t).width / 2; l.x = Math.max(lw + 4, Math.min(w - lw - 4, l.x)); x.globalAlpha = Math.max(0, Math.min(1, l.l * 1.6)); x.fillStyle = l.c; x.font = "600 13px Geist, sans-serif"; x.textAlign = "center"; x.fillText(l.t, l.x, l.y); }
+    labels = labels.filter(l => l.l > 0); x.globalAlpha = 1;
+    x.textAlign = "right"; x.fillStyle = "#6d7588"; x.font = "400 12.5px Geist, sans-serif"; x.fillText(`promoted ${promoted}`, w - 16, h - 14);
+    requestAnimationFrame(frame);
+  }
+  whenSeen(c, () => { if (!running && !STILL) { running = true; requestAnimationFrame(frame); } }, .2);
+})();
+
+/* ---------- transit vs background binary ---------- */
+(function () {
+  const c = document.getElementById("transit"); let g = fit(c);
+  addEventListener("resize", () => g = fit(c));
+  const P = 5200;
+  function scene(x, ox, w, h, t, blend) {
+    const cx = ox + w / 2, cy = 70, R = 42;
+    // star
+    const sg = x.createRadialGradient(cx, cy, 0, cx, cy, R * 2.2);
+    sg.addColorStop(0, "rgba(255,236,200,1)"); sg.addColorStop(.42, "rgba(255,205,140,.95)"); sg.addColorStop(.46, "rgba(255,170,90,.35)"); sg.addColorStop(1, "rgba(255,150,80,0)");
+    const ph = (t % P) / P;                          // 0..1 orbit phase
+    const tx = lerp(cx - R * 1.9, cx + R * 1.9, ph);  // transiting body x
+    const inT = Math.abs(tx - cx) < R;
+    const depth = inT ? (blend ? Math.max(0, 1 - Math.abs(tx - cx) / R) * .55 : .30) : 0;
+    x.globalAlpha = 1 - depth * .6; x.fillStyle = sg; x.beginPath(); x.arc(cx, cy, R * 2.2, 0, 6.283); x.fill(); x.globalAlpha = 1;
+    if (blend) {  // faint background pair
+      const bx = cx + 30, by = cy - 26;
+      x.fillStyle = "rgba(255,190,150,.55)"; x.beginPath(); x.arc(bx + Math.cos(t / 400) * 3, by, 3.2, 0, 6.283); x.fill();
+      x.fillStyle = "rgba(255,190,150,.35)"; x.beginPath(); x.arc(bx - Math.cos(t / 400) * 3, by + 1, 2.4, 0, 6.283); x.fill();
+    } else if (Math.abs(tx - cx) < R * 1.8) {
+      x.fillStyle = "#05070d"; x.beginPath(); x.arc(tx, cy + 6, 8, 0, 6.283); x.fill();
+    }
+    // centroid crosshair
+    const shift = blend && inT ? -depth * 22 : 0;
+    const col = shift ? "#ff7a59" : "#9cc3ff";
+    x.strokeStyle = col; x.lineWidth = 1.5; x.shadowColor = col; x.shadowBlur = shift ? 10 : 0;
+    const hx = cx + shift, hy = cy - shift * .6;
+    x.beginPath(); x.moveTo(hx - 10, hy); x.lineTo(hx - 4, hy); x.moveTo(hx + 4, hy); x.lineTo(hx + 10, hy);
+    x.moveTo(hx, hy - 10); x.lineTo(hx, hy - 4); x.moveTo(hx, hy + 4); x.lineTo(hx, hy + 10); x.stroke(); x.shadowBlur = 0;
+    // light curve
+    const top = 156, bh = 56, l0 = ox + 14, l1 = ox + w - 14;
+    x.strokeStyle = "rgba(255,255,255,.08)"; x.beginPath(); x.moveTo(l0, top + bh); x.lineTo(l1, top + bh); x.stroke();
+    x.strokeStyle = blend ? "#ff7a59" : "#5fd39a"; x.lineWidth = 2; x.beginPath();
+    for (let i = 0; i <= 120 * ph; i++) {
+      const p = i / 120, bx = lerp(cx - R * 1.9, cx + R * 1.9, p), d = Math.abs(bx - cx);
+      const dd = d < R ? (blend ? (1 - d / R) * .55 : (d > R * .8 ? .3 * (R - d) / (R * .2) : .3)) : 0;
+      const px = lerp(l0, l1, p), py = top + dd * bh * 1.5 + Math.sin(i * 1.7) * 1.2;
+      i ? x.lineTo(px, py) : x.moveTo(px, py);
+    }
+    x.stroke();
+    x.fillStyle = "#a9b1c2"; x.font = "500 13px Geist, sans-serif"; x.textAlign = "center";
+    x.fillText(blend ? "Background binary" : "Real planet", cx, h - 8);
+    x.fillStyle = shift ? "#ff7a59" : "#6d7588"; x.font = "400 12px Geist, sans-serif";
+    x.fillText(blend ? (shift ? "light center moves" : "watch the crosshair") : "light center stays put", cx, 140);
+  }
+  function frame(t) {
+    const { x, w, h } = g; x.clearRect(0, 0, w, h);
+    scene(x, 0, w / 2, h, t, false); scene(x, w / 2, w / 2, h, t + 0, true);
+    x.strokeStyle = "rgba(255,255,255,.07)"; x.beginPath(); x.moveTo(w / 2, 10); x.lineTo(w / 2, h - 24); x.stroke();
+    if (!STILL) requestAnimationFrame(frame);
+  }
+  whenSeen(c, () => requestAnimationFrame(frame), .2);
+  const st = [...document.querySelectorAll(".stamp")];
+  whenSeen(document.getElementById("stamps"), () => st.forEach((s, i) => setTimeout(() => s.classList.add("on"), 250 + i * 420)), .3);
+})();
+
+/* ---------- mass spectrum + counter ---------- */
+(function () {
+  const c = document.getElementById("spectrum"); let g = fit(c);
+  addEventListener("resize", () => g = fit(c));
+  const peaks = Array.from({ length: 46 }, (_, i) => ({ p: .04 + .92 * (i / 46) + (Math.random() - .5) * .015, h: Math.random() ** 2.4 * .9 + .04, d: Math.random() * .6 }));
+  [7, 19, 26, 33, 41].forEach(i => peaks[i].h = .55 + Math.random() * .4);
+  let t0 = 0;
+  function frame(now) {
+    if (!t0) t0 = now; const t = (now - t0) / 1000;
+    const { x, w, h } = g; x.clearRect(0, 0, w, h);
+    const base = h - 26;
+    x.strokeStyle = "rgba(255,255,255,.12)"; x.beginPath(); x.moveTo(6, base); x.lineTo(w - 6, base); x.stroke();
+    for (const p of peaks) {
+      const k = Math.max(0, Math.min(1, (t - p.d) / .9)), hh = ease(k) * p.h * (base - 14);
+      const breathe = 1 + .03 * Math.sin(now / 500 + p.p * 20);
+      const px = 10 + p.p * (w - 20);
+      const gr = x.createLinearGradient(0, base - hh, 0, base); gr.addColorStop(0, "#cfe0ff"); gr.addColorStop(1, "rgba(127,178,255,.15)");
+      x.fillStyle = gr; x.fillRect(px - 1.2, base - hh * breathe, 2.4, hh * breathe);
+      if (p.h > .5 && k > .9) { x.fillStyle = "rgba(207,224,255,.9)"; x.beginPath(); x.arc(px, base - hh * breathe, 2.4, 0, 6.283); x.fill(); }
+    }
+    x.fillStyle = "#6d7588"; x.font = "400 12px Geist, sans-serif"; x.textAlign = "left"; x.fillText("m/z", 8, h - 6);
+    if (!STILL) requestAnimationFrame(frame);
+  }
+  const cnt = document.getElementById("count");
+  whenSeen(c, () => {
+    requestAnimationFrame(frame);
+    const s = performance.now();
+    (function f(now) { const k = Math.min(1, (now - s) / 2600); cnt.innerHTML = `${Math.round(ease(k) * 4000).toLocaleString()} <small>of 4,000</small>`; if (k < 1) requestAnimationFrame(f); })(s);
+  }, .25);
+})();
+
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
+document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+</script>
+</body>
+</html>

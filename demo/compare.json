@@ -1,0 +1,403 @@
+{
+ "guarded": [
+  {
+   "i": 0,
+   "auc": 0.9694981766291422,
+   "verdict": "start",
+   "claim": "Baseline: transit shape + host star",
+   "who": ""
+  },
+  {
+   "i": 1,
+   "auc": 0.9694981766291422,
+   "verdict": "LEAK",
+   "claim": "Use the catalog designation as a feature",
+   "who": "proposer-redteam",
+   "moved": false,
+   "gain": 0.030521042036025386
+  },
+  {
+   "i": 2,
+   "auc": 0.9694981766291422,
+   "verdict": "NOISE",
+   "claim": "Grow the forest from 300 to 320 trees",
+   "who": "proposer-redteam",
+   "moved": false,
+   "gain": -6.906707794607225e-05
+  },
+  {
+   "i": 3,
+   "auc": 0.9694981766291422,
+   "verdict": "PRIOR",
+   "claim": "Add NASA's vetting score and false-positive flags as expert features",
+   "who": "proposer-redteam",
+   "moved": false,
+   "gain": 0.030626744694447223
+  },
+  {
+   "i": 4,
+   "auc": 0.972148550672413,
+   "verdict": "PROMOTED",
+   "claim": "True planets obey physical self-consistency that false positives often break. The transit duration should match what the catalog star's dens",
+   "who": "proposer-2",
+   "moved": true,
+   "gain": 0.0026870096237465724
+  },
+  {
+   "i": 5,
+   "auc": 0.9945857416723122,
+   "verdict": "PROMOTED",
+   "claim": "Most false positives are eclipsing binaries: either on the target star, or in the background and blended into the aperture. The incumbent on",
+   "who": "proposer-1",
+   "moved": true,
+   "gain": 0.025217291033051332
+  },
+  {
+   "i": 6,
+   "auc": 0.9945857416723122,
+   "verdict": "PRIOR",
+   "claim": "False positives such as background eclipsing binaries are betrayed by the vetting diagnostics: the in-transit centroid shift, odd/even depth",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": 0.026432871604902708
+  },
+  {
+   "i": 7,
+   "auc": 0.9945857416723122,
+   "verdict": "NOISE",
+   "claim": "Real planets have transit geometry that agrees with the catalog star, and implied planet sizes that are planetary. The incumbent compares on",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -0.0002474403140330465
+  },
+  {
+   "i": 8,
+   "auc": 0.9945857416723122,
+   "verdict": "PRIOR",
+   "claim": "Pairing the random forest with a gradient-boosted model that handles missing values natively should improve ranking on held-out stars. The b",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": 0.0008360119347910292
+  },
+  {
+   "i": 9,
+   "auc": 0.9945857416723122,
+   "verdict": "PRIOR",
+   "claim": "A background eclipsing binary shows up as a real, physical displacement of the transit source on the sky. The incumbent only sees one-dimens",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": 0.0003243149747033843
+  },
+  {
+   "i": 10,
+   "auc": 0.9945857416723122,
+   "verdict": "OVERFIT",
+   "claim": "False positives such as background eclipsing binaries are betrayed by the vetting diagnostics: the in-transit centroid shift, odd/even depth",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": 0.001215580571851375
+  },
+  {
+   "i": 11,
+   "auc": 0.9945857416723122,
+   "verdict": "NOISE",
+   "claim": "The incumbent's density check is an unweighted log-ratio. A mismatch of a given size means very different things for a well-measured star an",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -0.00042401180026045243
+  },
+  {
+   "i": 12,
+   "auc": 0.9945857416723122,
+   "verdict": "NOISE",
+   "claim": "Eclipsing binaries, whether on the target or in a diluted background, give V-shaped or grazing transits and large odd/even depth mismatches.",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": 0.00018197673580577778
+  },
+  {
+   "i": 13,
+   "auc": 0.9956866108364444,
+   "verdict": "PROMOTED",
+   "claim": "A second learner restricted to light-curve and vetting measurements, with monotone constraints along known false-positive directions, should",
+   "who": "proposer-3",
+   "moved": true,
+   "gain": 0.0011296971618836027
+  },
+  {
+   "i": 14,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "Two geometric self-consistency checks on the fitted transit model still add information. (1) Depth vs radius ratio: a limb-darkened transit ",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -0.0005080934603686934
+  },
+  {
+   "i": 15,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "Kepler false positives are dominated by eclipsing binaries, whose eclipses are deep. Their fitted radius ratio koi_ror is large: above about",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.00016516040378415178
+  },
+  {
+   "i": 16,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "A real periodic transit spreads its signal evenly over about N = baseline/P events, so its multiple-event statistic should grow as MES \u2248 SES",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": -9.429157597858524e-05
+  },
+  {
+   "i": 17,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "Real planets on circular orbits have a transit duration at or below the maximum central-transit duration T0 = P/(pi*a/R*) that the catalog s",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": 0.00042100888382797425
+  },
+  {
+   "i": 18,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "A KOI's chance of being a background eclipsing-binary blend depends on how many unresolved background stars could produce it. Count the star",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": 0.0
+  },
+  {
+   "i": 19,
+   "auc": 0.9956866108364444,
+   "verdict": "OVERFIT",
+   "claim": "The 0.6/0.4 average of raw probabilities mixes two badly mismatched scales. The forest's probabilities are squashed toward 0.5, while the re",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": 0.0003429330565845416
+  },
+  {
+   "i": 20,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "A body larger than about 1.2-2 Jupiter radii is not a planet, since degenerate-matter radii saturate near 1 R_Jup. The physical planet radiu",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -0.00023843156473564905
+  },
+  {
+   "i": 21,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "A background eclipsing binary shifts the centroid by the same amount whatever direction on the sky the contaminating star lies in, so the si",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.00017957440265988409
+  },
+  {
+   "i": 22,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "The flux-weighted centroid shift during transit (koi_fwm_prao / koi_fwm_pdeco) contains information about background eclipsing-binary blends",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": -0.00019218665167612206
+  },
+  {
+   "i": 23,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "Pairing the random forest with a gradient-boosted model that handles missing values natively should improve ranking on held-out stars. The b",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.00029368522709257344
+  },
+  {
+   "i": 24,
+   "auc": 0.9956866108364444,
+   "verdict": "NOISE",
+   "claim": "A background eclipsing binary shows up as a real, physical displacement of the transit source on the sky. The incumbent only sees one-dimens",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": -0.0008053821871802184
+  }
+ ],
+ "naive": [
+  {
+   "i": 0,
+   "auc": 0.9698080776049699,
+   "verdict": "start",
+   "claim": "Baseline: transit shape + host star",
+   "who": ""
+  },
+  {
+   "i": 1,
+   "auc": 0.9998270320134915,
+   "verdict": "ACCEPTED",
+   "claim": "Use the catalog designation as a feature",
+   "who": "proposer-redteam",
+   "moved": true,
+   "gain": 0.030018954408521648
+  },
+  {
+   "i": 2,
+   "auc": 0.9998270320134915,
+   "verdict": "REJECTED",
+   "claim": "Grow the forest from 300 to 320 trees",
+   "who": "proposer-redteam",
+   "moved": false,
+   "gain": -0.030170301396716503
+  },
+  {
+   "i": 3,
+   "auc": 0.9999459475042161,
+   "verdict": "ACCEPTED",
+   "claim": "Add NASA's vetting score and false-positive flags as expert features",
+   "who": "proposer-redteam",
+   "moved": true,
+   "gain": 0.0001189154907245138
+  },
+  {
+   "i": 4,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Real planets differ from eclipsing binaries and blends in ways the incumbent's transit-shape and host-star features only partly capture. Cen",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.002572898799313883
+  },
+  {
+   "i": 5,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Real planets show internally consistent transit geometry: the stellar density implied by the transit (period, duration, impact parameter, ra",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -4.8647246205457684e-05
+  },
+  {
+   "i": 6,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "The incumbent's apparent strength comes from koi_score and koi_fpflag_*. These are outputs of the same vetting process that assigned the lab",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.00259271804776795
+  },
+  {
+   "i": 7,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Real planets have internally consistent transit geometry. The stellar density implied by period, duration, impact parameter and radius ratio",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -5.945774536231241e-05
+  },
+  {
+   "i": 8,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "The incumbent's two 'accepted' gains are leakage, not physics. koi_score and koi_fpflag_* are outputs of the same Robovetter process that as",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.002338671317583585
+  },
+  {
+   "i": 9,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "The incumbent's accepted gains come from koi_score, the koi_fpflag_* flags and the catalog designation. These are outputs of the same vettin",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": -0.0023026363203942912
+  },
+  {
+   "i": 10,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Real planets have transit geometry consistent with the catalog host star, while eclipsing binaries and blends often do not. The observed dur",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -5.765599550278111e-05
+  },
+  {
+   "i": 11,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "The incumbent's accepted gains come from koi_score, koi_fpflag_* and the catalog designation. These are outputs of the Robovetter dispositio",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.002053994839788409
+  },
+  {
+   "i": 12,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Two physical false-positive diagnostics carry information that the incumbent's columns only partly capture. (1) Multiplicity: a star hosting",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": -0.000284676477795176
+  },
+  {
+   "i": 13,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Grazing or physically implausible transit geometry marks eclipsing binaries. The geometry-consistency features are (a) the grazing indicator",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -4.8647246205457684e-05
+  },
+  {
+   "i": 14,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Most of the information a median-imputing random forest discards sits in the missingness and heavy tails of the vetting diagnostics. Example",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.0030053187655850744
+  },
+  {
+   "i": 15,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "The incumbent sees the vetting diagnostics only as Robovetter's binary flags. Turning the raw diagnostics into the physical test statistics ",
+   "who": "proposer-1",
+   "moved": false,
+   "gain": -8.828574311370296e-05
+  },
+  {
+   "i": 16,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Eclipsing binaries and blends break the planet-star relations that real planets obey. I encode these as a few smooth, NaN-tolerant residuals",
+   "who": "proposer-2",
+   "moved": false,
+   "gain": -0.002403534312524269
+  },
+  {
+   "i": 17,
+   "auc": 0.9999459475042161,
+   "verdict": "REJECTED",
+   "claim": "Without the leaked vetting outputs (koi_score, koi_fpflag_*), a gradient-boosted model that handles NaN natively and has physically motivate",
+   "who": "proposer-3",
+   "moved": false,
+   "gain": -0.0026071320466436454
+  }
+ ],
+ "reality": {
+  "guarded": {
+   "as_scored": 0.9954456467322483,
+   "answers_removed": 0.9954456467322483
+  },
+  "naive": {
+   "as_scored": 0.9999116529728775,
+   "answers_removed": 0.9023970212967551
+  }
+ },
+ "baseline": {
+  "as_scored": 0.9782013313512871,
+  "answers_removed": 0.9782013313512871
+ }
+}

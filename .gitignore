@@ -1,0 +1,13 @@
+.env
+.venv/
+ui.log
+*/data/raw/
+*/data/hidden/
+*/data/*.json.tmp
+exo/runs_check/
+quant/runs_*.log
+site/dist/
+.venv
+exo/runs/
+exo/data/*.parquet
+__pycache__/
