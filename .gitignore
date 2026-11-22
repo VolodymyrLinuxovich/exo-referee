@@ -15,3 +15,15 @@ exo/native/*.dylib
 exo/native/*.so
 loop/state.json
 loop/loop.log
+.env.local
+!/egbe-docs/marketing/campaigns/instantly/outreach.db
+/egbe-docs/**/.local/
+/egbe-docs/**/.env
+/egbe-docs/**/.env.*
+/egbe-docs/**/*.lock
+/egbe-docs/**/*.tmp
+/egbe-docs/**/*-wal
+/egbe-docs/**/*-shm
+/egbe-docs/**/*-journal
+.claude/skills/
+EGBE.md

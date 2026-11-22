@@ -40,7 +40,8 @@ NASA = ("https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
 
 
 def sh(args, cwd=ROOT, timeout=3600):
-    r = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    env = {**os.environ, "OS_AGENT_NAME": "Claude Code"}   # how this agent shows up in the Egbe dashboard
+    r = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env)
     return r.returncode, (r.stdout + r.stderr)[-4000:]
 
 
@@ -146,6 +147,11 @@ def main():
         r["deploy"] = deploy()
 
     path = report(r)
+    # hand the report to Egbe: the business's loop plan, reports and checkpoints live there
+    code, out = sh([PY, ".claude/skills/egbe-os-quickstart/scripts/sync-artifacts.py"], timeout=300) \
+        if (ROOT / ".claude/skills/egbe-os-quickstart/scripts/sync-artifacts.py").exists() else (1, "Egbe not installed")
+    synced = "synced to Egbe" if code == 0 else "Egbe sync failed: " + out.strip().splitlines()[-1][:160]
+    path.write_text(path.read_text() + f"\n## Egbe\n- {synced}\n")
     state.update(cycles=state.get("cycles", 0) + 1, last_run=datetime.now(timezone.utc).isoformat(),
                  last_status=r["status"], last_report=str(path.relative_to(ROOT)))
     STATE.write_text(json.dumps(state, indent=1))
