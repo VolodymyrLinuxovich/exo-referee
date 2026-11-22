@@ -35,7 +35,7 @@ statistics run in **C++**.
 **Challenge:** Build tools that help your projects operate and self-improve autonomously, and put the human out of the loop<br/>
 **Built:** November 22, 2026<br/>
 **Team:** Volodymyr Borysenko<br/>
-**Live demo:** [spectre-planets.vercel.app](https://spectre-planets.vercel.app)
+**Live demo:** [exo-referee.egbe.app](https://exo-referee.egbe.app) (Egbe hosting, redeployed by the loop) and [spectre-planets.vercel.app](https://spectre-planets.vercel.app)
 
 | Page | What you'll find |
 |------|------------------|
@@ -314,6 +314,20 @@ The Actor is deployed on the Apify platform as `enterprising_arboretum_iq2/exo-p
 | `site/` | The site and its data builder |
 
 ---
+
+## The Loop After the Demo
+
+The Referee keeps working on its own. `loop/tick.py` runs every 6 hours on this Mac (launchd,
+`loop/com.exoreferee.loop.plist`; the sandbox needs macOS). Each cycle:
+
+1. **Checks the checker** with `exo/selftest.py`; a failure halts the loop before any claim is judged.
+2. **Processes new data**: pulls today's NASA dispositions and scores our ranking of the 1,977 unresolved
+   candidates on any NASA has resolved since the snapshot.
+3. **Runs background work**: one guarded round, 2 Claude agents researching through the Apify Actor.
+4. **Deploys updates**: rebuilds the site and publishes it on Egbe hosting (`loop/deploy.sh`,
+   [exo-referee.egbe.app](https://exo-referee.egbe.app)).
+5. **Reports** to `egbe-docs/reports/` and syncs to the Egbe business, where the loop plan lives
+   (`egbe-docs/loops/mine/referee-loop.md`). A person stays on the loop by reading the reports.
 
 ## Where It Comes From
 
