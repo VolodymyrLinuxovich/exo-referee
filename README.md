@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/icon.svg" alt="Exo Referee logo" width="72" height="72">
+<img src="docs/icon.svg" alt="Redshift logo" width="72" height="72">
 
-# Exo Referee
+# Redshift
 
 **Self-improving AI grades its own work. This is the referee.** Claude agents try to improve a model that tells
 **real exoplanets from false positives** in NASA Kepler data. Every change they claim runs **sealed**, passes **five
@@ -23,7 +23,7 @@ statistics run in **C++**.
 
 <br/>
 
-<img src="docs/hero.png" alt="The Exo Referee site: Self-improving AI grades its own work, over a rotating ice giant" width="760">
+<img src="docs/hero.png" alt="The Redshift site: Self-improving AI grades its own work, over a rotating ice giant" width="760">
 
 <br/>
 
@@ -35,7 +35,7 @@ statistics run in **C++**.
 **Challenge:** Build tools that help your projects operate and self-improve autonomously, and put the human out of the loop<br/>
 **Built:** November 22, 2026<br/>
 **Team:** Volodymyr Borysenko<br/>
-**Live demo:** [exo-referee.egbe.app](https://exo-referee.egbe.app) (Egbe hosting, redeployed by the loop) and [spectre-planets.vercel.app](https://spectre-planets.vercel.app)
+**Live demo:** [redshift.egbe.app](https://redshift.egbe.app) (Egbe hosting, redeployed by the loop) and [spectre-planets.vercel.app](https://spectre-planets.vercel.app)
 
 | Page | What you'll find |
 |------|------------------|
@@ -189,7 +189,7 @@ an honest control, and replay every recorded verdict whenever a gate changes.
 
 ### What each loop is worth
 
-![Two grids of each loop's 539 picks. Without a referee: 416 real planets and 123 false alarms. With Spectre: 521 and 18.](docs/result.png)
+![Two grids of each loop's 539 picks. Without a referee: 416 real planets and 123 false alarms. With Redshift: 521 and 18.](docs/result.png)
 
 Same Claude agents, same data, same afternoon. The naive loop keeps any change that scores higher on validation. The
 guarded loop keeps a change only when the Referee promotes it. Then each final model picks its best 539 candidates
@@ -325,7 +325,7 @@ The Referee keeps working on its own. `loop/tick.py` runs every 6 hours on this 
    candidates on any NASA has resolved since the snapshot.
 3. **Runs background work**: one guarded round, 2 Claude agents researching through the Apify Actor.
 4. **Deploys updates**: rebuilds the site and publishes it on Egbe hosting (`loop/deploy.sh`,
-   [exo-referee.egbe.app](https://exo-referee.egbe.app)).
+   [redshift.egbe.app](https://redshift.egbe.app)).
 5. **Reports** to `egbe-docs/reports/` and syncs to the Egbe business, where the loop plan lives
    (`egbe-docs/loops/mine/referee-loop.md`). A person stays on the loop by reading the reports.
 

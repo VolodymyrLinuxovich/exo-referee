@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy step of the Exo Referee loop: publish the site on Egbe hosting (<name>.egbe.app).
+# Deploy step of the Redshift loop: publish the site on Egbe hosting (<name>.egbe.app).
 #
 # Copies the built site into loop/publish (its own git repo), commits if anything changed,
 # pushes it to the business's Egbe git repo, and asks Egbe to build and serve it.
@@ -7,8 +7,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
-SLUG=exo-referee
-REPO=exo-referee-site
+SLUG=redshift
+REPO=redshift-site
 PUB=$ROOT/loop/publish
 HELPER=$ROOT/.claude/skills/egbe-os-quickstart/scripts/egbe-curl.py
 PY=$ROOT/.venv/bin/python
@@ -30,7 +30,7 @@ printf 'Dockerfile\n.git\n' > "$PUB/.dockerignore"
 
 # 2. commit only when the site actually changed
 cd "$PUB"
-[ -d .git ] || { git init -q -b main; git config user.name "Exo Referee loop"; git config user.email "loop@exo-referee.local"; }
+[ -d .git ] || { git init -q -b main; git config user.name "Redshift loop"; git config user.email "loop@exo-referee.local"; }
 git add -A
 if git diff --cached --quiet && git rev-parse -q --verify HEAD >/dev/null; then
   echo "site unchanged"
@@ -48,6 +48,6 @@ SHA=$(git rev-parse HEAD)
 
 # 4. build and serve
 cd "$ROOT"
-egbe "/deploy" -s -X POST -H "Content-Type: application/json" -d "{\"slug\":\"$SLUG\",\"business_name\":\"Exo Referee\",\"repo\":\"$REPO\",\"ref\":\"$SHA\"}"
+egbe "/deploy" -s -X POST -H "Content-Type: application/json" -d "{\"slug\":\"$SLUG\",\"business_name\":\"Redshift\",\"repo\":\"$REPO\",\"ref\":\"$SHA\"}"
 echo
 echo "deployed $SHA"

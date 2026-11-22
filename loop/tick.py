@@ -1,4 +1,4 @@
-"""One cycle of the Exo Referee business loop. Runs unattended on a schedule.
+"""One cycle of the Redshift business loop. Runs unattended on a schedule.
 
   .venv/bin/python loop/tick.py              # full cycle
   .venv/bin/python loop/tick.py --no-agents  # data + report only (no model spend)
@@ -100,7 +100,7 @@ def deploy():
 def report(r: dict) -> Path:
     REPORTS.mkdir(parents=True, exist_ok=True)
     t = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%MZ")
-    lines = [f"# Exo Referee loop, {t}", "", f"Status: **{r['status']}**", ""]
+    lines = [f"# Redshift loop, {t}", "", f"Status: **{r['status']}**", ""]
     lines += ["## Check the checker", *[f"- {l.strip()}" for l in r["selftest"]], ""]
     na = r.get("new_answers")
     if na:

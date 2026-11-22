@@ -1,4 +1,4 @@
-# Loop: Exo Referee, keep improving and keep checking
+# Loop: Redshift, keep improving and keep checking
 
 **Decision this loop makes, every cycle:** which agent-proposed change to the planet classifier becomes
 the new model, and whether the referee itself can still be trusted to decide that.

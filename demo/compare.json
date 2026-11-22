@@ -393,11 +393,11 @@
   },
   "naive": {
    "as_scored": 0.9999116529728775,
-   "answers_removed": 0.9023970212967551
+   "answers_removed": 0.9024037433531666
   }
  },
  "baseline": {
-  "as_scored": 0.9782013313512871,
-  "answers_removed": 0.9782013313512871
+  "as_scored": 0.9782131749744881,
+  "answers_removed": 0.9782131749744881
  }
 }

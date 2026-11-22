@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spectre, the referee for self-improving AI</title>
-<meta name="description" content="Agents that improve themselves grade their own work. Spectre checks every claim before it ships.">
+<title>Redshift, the referee for self-improving AI</title>
+<meta name="description" content="Agents that improve themselves grade their own work. Redshift checks every claim before it ships.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap" rel="stylesheet">
 <style>
@@ -133,13 +133,13 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 <div class="planet ice" data-depth="0.3" aria-hidden="true"></div>
 
 <nav><div class="wrap">
-  <a class="logo" href="#"><i></i>Spectre</a>
+  <a class="logo" href="#"><i></i>Redshift</a>
   <div class="links"><a href="#result">Result</a><a href="#referee">Referee</a><a href="#proof">Proof</a><a href="https://github.com/VolodymyrLinuxovich/exo-referee">GitHub</a></div>
 </div></nav>
 
 <header class="hero"><div class="wrap">
   <h1>Self&#8209;improving AI <em>grades its own work.</em></h1>
-  <p class="sub">Spectre is the referee. Every claim an agent makes is checked against data it never saw before it ships. We ran it on molecules and on planets.</p>
+  <p class="sub">Redshift is the referee. Every claim an agent makes is checked against data it never saw before it ships. We ran it on molecules and on planets.</p>
   <div class="cta"><a class="btn solid" href="#result">See the result</a><a class="btn line" href="compare.html">Open the live chart</a></div>
 </div></header>
 
@@ -151,8 +151,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <div class="side"><h3>Without a referee</h3><p class="auc">Believed its model scored 0.9999. It had read the answer from the catalog.</p>
         <canvas id="g-naive" aria-label="Follow-up picks of the loop without a referee"></canvas>
         <div class="tally"><div><div class="v real" id="n-real">0</div><div class="k">real planets found</div></div><div><div class="v false" id="n-false">0</div><div class="k">false alarms followed up</div></div></div></div>
-      <div class="side"><h3>With Spectre</h3><p class="auc">Every change verified on stars no agent had seen.</p>
-        <canvas id="g-guard" aria-label="Follow-up picks of the loop with Spectre"></canvas>
+      <div class="side"><h3>With Redshift</h3><p class="auc">Every change verified on stars no agent had seen.</p>
+        <canvas id="g-guard" aria-label="Follow-up picks of the loop with Redshift"></canvas>
         <div class="tally"><div><div class="v real" id="g-real">0</div><div class="k">real planets found</div></div><div><div class="v false" id="g-false">0</div><div class="k">false alarms followed up</div></div></div></div>
     </div>
     <div class="key"><span><i class="kr"></i>real planet</span><span><b class="kx">&times;</b>false positive</span></div>
@@ -163,7 +163,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 
 <section id="referee"><div class="wrap">
   <h2 class="reveal">Every claim runs the gauntlet. <em>Most don't make it.</em></h2>
-  <p class="lead reveal">Agents never see a label and their code runs sealed. Spectre is the only process that reads the answers. The first gate a claim fails is its verdict.</p>
+  <p class="lead reveal">Agents never see a label and their code runs sealed. Redshift is the only process that reads the answers. The first gate a claim fails is its verdict.</p>
   <div class="stage pipe reveal">
     <canvas id="pipe" aria-label="Claims flowing through five gates"></canvas>
     <div class="gate-row">
@@ -197,7 +197,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <p class="cap">MassSpecGym, DeepMind award at the SF AI Research Hackathon.</p>
       <canvas id="spectrum" aria-label="A mass spectrum drawing in"></canvas>
       <div class="counter" id="count">0 <small>of 4,000</small></div>
-      <p class="cap">validation spectra list the true molecule first. An agent that notices scores a perfect 1.00 and learns nothing. Spectre reshuffles candidates and keeps labels sealed.</p>
+      <p class="cap">validation spectra list the true molecule first. An agent that notices scores a perfect 1.00 and learns nothing. Our referee reshuffles candidates and keeps labels sealed.</p>
     </div>
   </div>
 </div></section>
@@ -209,7 +209,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 </div></section>
 
 <footer><div class="wrap">
-  <span>Spectre at Sundai, November 22, 2026</span>
+  <span>Redshift, by Volodymyr Borysenko</span>
   <span>Data from the NASA Exoplanet Archive and MassSpecGym. Not affiliated with NASA.</span>
 </div></footer>
 
@@ -371,7 +371,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
       if (t < 1) requestAnimationFrame(f);
       else {
         const n = F.loops.naive[String(F.real)], g = F.loops.guarded[String(F.real)];
-        document.getElementById("punch").innerHTML = `Same telescope time. Spectre finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>.${F.loops.start && n.real < F.loops.start[String(F.real)].real ? " The unchecked loop ended worse than where it started." : ""}`;
+        document.getElementById("punch").innerHTML = `Same telescope time. Redshift finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>.${F.loops.start && n.real < F.loops.start[String(F.real)].real ? " The unchecked loop ended worse than where it started." : ""}`;
       }
     })(t0);
   }
