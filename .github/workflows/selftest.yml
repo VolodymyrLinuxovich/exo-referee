@@ -1,0 +1,26 @@
+# Checks the checker on every push: statistics, all five gates on planted cheats and an honest
+# control, and the sandbox against a hostile candidate. macOS because the sandbox is sandbox-exec.
+name: selftest
+on: [push, pull_request]
+jobs:
+  selftest:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Python environment
+        run: |
+          uv venv .venv --python 3.12
+          uv pip install --python .venv/bin/python numpy pandas pyarrow scikit-learn scipy anthropic openai python-dotenv
+      - name: C++ statistics
+        run: make -C exo/native
+      - name: NASA Kepler data
+        working-directory: exo
+        run: |
+          mkdir -p data/raw data/hidden
+          curl -sSf -o data/raw/koi.csv "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+cumulative&format=csv"
+          ../.venv/bin/python prep.py
+      - name: Self-test
+        working-directory: exo
+        run: ../.venv/bin/python selftest.py

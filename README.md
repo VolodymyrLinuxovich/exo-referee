@@ -247,12 +247,23 @@ Then we **replayed every recorded verdict** with the corrected AUC and the star 
 except the two claims the old PRIOR rule had rejected. Under the fixed rule one would have been promoted at the time
 (+0.0008); against today's model it adds nothing. All three promotions held, Sonnet's re-run from scratch.
 
+### Kept honest automatically
+
+`exo/selftest.py` runs on every push (GitHub Actions, macOS). It judges the three planted cheats and the honest
+control against the starting model and expects LEAK, PRIOR, NOISE and PROMOTED. It attacks the sandbox with a
+candidate that tries to read the raw table, the hidden labels and the original inputs and to write outside its run.
+It checks AUC against scikit-learn on heavily tied predictions. The shared cache merges every write under a file lock,
+so the swarm, the naive loop and the live demo can run at once without losing results (4 processes, 240 writes, 240
+kept). Agents' citations are checked against what the Actor actually returned.
+
 ### Research, live
 
 With research on, an Opus agent asked the Actor about false-positive signatures. It came back with *Kepler Data
 Validation I: Architecture, Diagnostic Tests* and *LEO-Vetter*, and the agent built its claim on Data Validation's
 tests and cited them. One of its three citations came from the model's memory rather than the search. Its code then
-crashed in the sandbox, and the Referee said CRASH.
+crashed in the sandbox, and the Referee said CRASH. A second run, after the sandbox was hardened, found
+the same papers and was **PROMOTED at +0.0185 AUC on hidden stars** (95% interval +0.013 to +0.024) in 19 seconds. Its
+citation check: 2 of 4 citations came from the search, 2 from the model's memory.
 
 ---
 
@@ -275,6 +286,7 @@ cd ..
 .venv/bin/python demo/cheat.py name --fresh                          # live: plant a cheat, watch LEAK
 .venv/bin/python demo/followup.py                                    # what each loop is worth
 .venv/bin/python exo/fastci.py                                       # C++ vs NumPy check
+.venv/bin/python exo/selftest.py                                     # check the checker: gates, sandbox, statistics
 ```
 
 The Actor is deployed on the Apify platform as `enterprising_arboretum_iq2/exo-prior-work`; one search takes about 5 seconds. With `APIFY_TOKEN` and `APIFY_ACTOR=enterprising_arboretum_iq2~exo-prior-work` in `.env`, the agents call it there. Run it alone (`actor/`): put `{"queries": ["centroid offset false positive kepler"]}` in
@@ -295,6 +307,7 @@ The Actor is deployed on the Apify platform as `enterprising_arboretum_iq2/exo-p
 | `exo/priorwork.py` | Calls the Apify Actor (platform or local) |
 | `actor/` | `exo-prior-work` Apify Actor: Crawlee over arXiv |
 | `exo/redteam/`, `exo/controls/` | Planted cheats and the honest control |
+| `exo/selftest.py`, `.github/workflows/selftest.yml` | Every gate, the sandbox and the statistics, checked on every push |
 | `demo/cheat.py` | Live cheat for the stage |
 | `demo/followup.py`, `demo/compare.py` | What each loop is worth on hidden stars |
 | `site/` | The site and its data builder |

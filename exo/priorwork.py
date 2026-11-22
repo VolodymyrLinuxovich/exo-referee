@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import urllib.request
@@ -57,6 +58,21 @@ def _dedupe(items: list[dict]) -> list[dict]:
             seen.add(it["url"])
             out.append(it)
     return out
+
+
+def _arxiv_id(url: str) -> str:
+    """'http://arxiv.org/abs/1803.04526v2' and 'https://arxiv.org/abs/1803.04526' -> '1803.04526'."""
+    tail = url.strip().rstrip("/").split("/abs/")[-1]
+    return re.sub(r"v\d+$", "", tail).lower()
+
+
+def check_citations(cited: list[str], papers: list[dict]) -> dict:
+    """Which citations are papers the search actually returned. A citation from the model's memory
+    may be real, but nobody has looked at it in this run, so it is reported separately."""
+    found = {_arxiv_id(p["url"]) for p in papers if p.get("url")}
+    cited = [c for c in cited if isinstance(c, str) and c.strip()]
+    ok = [c for c in cited if _arxiv_id(c) in found]
+    return {"total": len(cited), "from_search": len(ok), "from_memory": [c for c in cited if c not in ok]}
 
 
 def for_prompt(papers: list[dict], k: int = 6) -> str:

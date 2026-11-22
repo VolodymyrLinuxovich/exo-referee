@@ -156,8 +156,9 @@ class Proposer:
             hypothesis=h, mechanism=hyp.get("mechanism", ""), expected_gain=hyp.get("expected_gain", ""))
         (HERE / "runs/code").mkdir(exist_ok=True)
         (HERE / f"runs/code/{exp_id}.py").write_text(code)
+        cites = priorwork.check_citations(hyp.get("citations", []) or [], papers)
         log(self.name, "claim", exp_id=exp_id, tag=self.args.tag, change=h,
-            expected=hyp.get("expected_gain", ""), citations=hyp.get("citations", []))
+            expected=hyp.get("expected_gain", ""), citations=hyp.get("citations", []), citation_check=cites)
         self.ref.judge(code, claim=h, agent=self.name, guarded=not self.args.naive,
                        exp_id=exp_id, tag=self.args.tag)
 

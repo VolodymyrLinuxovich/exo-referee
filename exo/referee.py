@@ -16,6 +16,7 @@ Gates, first failure is the verdict:
 """
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -39,6 +40,25 @@ CACHE = RUNS / "cache.json"
 SEEDS = (0, 1, 2)
 TAG = os.environ.get("EXO_TAG", "exo")
 PARALLEL = int(os.environ.get("EXO_PARALLEL", "5"))
+def _merge_into_cache(new: dict):
+    """Add entries to cache.json without losing anyone else's.
+
+    Several processes (the swarm, the naive loop, the live demo) share one cache. Each used to write
+    back its own in-memory copy, so the last writer silently dropped the others' results. Now every
+    write re-reads the file under an exclusive lock, merges, and replaces it atomically."""
+    with open(CACHE.with_suffix(".lock"), "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try:
+            disk = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+        except json.JSONDecodeError:
+            disk = {}
+        disk.update(new)
+        tmp = CACHE.with_suffix(f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(disk))
+        tmp.replace(CACHE)
+        fcntl.flock(lk, fcntl.LOCK_UN)
+
+
 _TMPL = (HERE / "sandbox.sb.tmpl").read_text()
 
 
@@ -126,6 +146,11 @@ class Referee:
     def run(self, src: str, seed: int, mode: str = "plain") -> dict:
         key = f"{sha(src)}:{seed}:{mode}"
         with _lock:
+            if key not in self.cache and CACHE.exists():      # another process may have run it meanwhile
+                try:
+                    self.cache.update(json.loads(CACHE.read_text()))
+                except json.JSONDecodeError:
+                    pass
             if key in self.cache:
                 return self.cache[key]
         out = Path(tempfile.mkdtemp(prefix="qrun_"))
@@ -153,9 +178,7 @@ class Referee:
             return res
         with _lock:
             self.cache[key] = res
-            tmp = CACHE.with_suffix(f".{os.getpid()}.tmp")
-            tmp.write_text(json.dumps(self.cache))
-            tmp.replace(CACHE)
+            _merge_into_cache({key: res})
         return res
 
     def batch(self, jobs):
