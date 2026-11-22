@@ -204,7 +204,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 
 <section class="honest"><div class="wrap">
   <h2 class="reveal">We check the checker <em>too.</em></h2>
-  <p class="lead reveal">Today we found two false&#8209;positive bugs in our own gates and fixed them. We re&#8209;judged three claims in the open, and nothing was erased.</p>
+  <p class="lead reveal">Today we found two false&#8209;positive bugs in our own gates and fixed them. We re&#8209;judged three claims in the open, and nothing was erased. Then a code review found more: tied scores, a sandbox with gaps, an interval that was too narrow. We fixed them and replayed every verdict. All three promotions held.</p>
   <div class="cta reveal"><a class="btn solid" href="https://github.com/VolodymyrLinuxovich/exo-referee">Read the code</a><a class="btn line" href="compare.html">See every verdict</a></div>
 </div></section>
 
@@ -327,14 +327,6 @@ const lerp = (a, b, t) => a + (b - a) * t;
   requestAnimationFrame(draw);
 })();
 
-/* ---------- numbers from the run ---------- */
-const R = { start: 0.978, naiveBelief: 0.9999, naiveReal: 0.902, guardSteps: [0.9717, 0.9946, 0.9957], guardReal: 0.995 };
-const dataReady = fetch("data.json").then(r => r.json()).then(d => {
-  if (d.reality) { R.naiveReal = d.reality.naive; R.guardReal = d.reality.guarded; R.start = d.reality.baseline; }
-  const nt = d.naive && d.naive.timeline; if (nt && nt.length) R.naiveBelief = nt[nt.length - 1].auc;
-  const gt = d.guarded && d.guarded.timeline; if (gt && gt.length > 1) R.guardSteps = gt.slice(1).map(p => p.auc);
-}).catch(() => {});
-
 /* ---------- follow-up budget: each loop's best picks, real or false ---------- */
 (function () {
   const COLS = 28;
@@ -379,7 +371,7 @@ const dataReady = fetch("data.json").then(r => r.json()).then(d => {
       if (t < 1) requestAnimationFrame(f);
       else {
         const n = F.loops.naive[String(F.real)], g = F.loops.guarded[String(F.real)];
-        document.getElementById("punch").innerHTML = `Same telescope time. Spectre finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>. The unchecked loop ended worse than where it started.`;
+        document.getElementById("punch").innerHTML = `Same telescope time. Spectre finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>.${F.loops.start && n.real < F.loops.start[String(F.real)].real ? " The unchecked loop ended worse than where it started." : ""}`;
       }
     })(t0);
   }

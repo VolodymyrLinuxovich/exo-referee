@@ -24,6 +24,7 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(HERE.parent / ".env", override=True)
 from referee import EVENTS, Referee, log  # noqa: E402
+import priorwork  # noqa: E402  arXiv prior work via the exo-prior-work Apify Actor
 
 FOCUS = [
     "astrophysical false-positive signatures: background eclipsing binaries, centroid shifts during transit, "
@@ -50,7 +51,7 @@ model.py interface (keep it exactly):
 - Packages: numpy, pandas, scikit-learn, scipy only. No network, no file writes. Must run in under 2 minutes on CPU.
 - The Referee judges with 3 seeds, a label-shuffle check, a check that blanks every light-curve measurement,
   and a hidden fold of stars you never see. Gains that are not real physics will be rejected.
-Return a ```json block {"hypothesis": ..., "mechanism": ..., "expected_gain": "+0.00x AUC"} then the FULL file in one ```python block."""
+Return a ```json block {"hypothesis": ..., "mechanism": ..., "expected_gain": "+0.00x AUC", "citations": [urls of the prior work you used]} then the FULL file in one ```python block."""
 
 
 class LLM:
@@ -132,7 +133,13 @@ class Proposer:
     def step(self):
         exp_id = f"exo-{uuid.uuid4().hex[:6]}"
         inc = self.ref.incumbent()
-        user = (f"Your focus area: {self.focus}\n\nCurrent incumbent model.py:\n```python\n{inc}\n```\n\n"
+        # research first: what is already known about this focus area (Apify Actor, arXiv)
+        query = self.focus.split(":")[0] + " kepler false positive"
+        papers = [] if self.args.no_research else priorwork.search([query])
+        log(self.name, "prior_work", exp_id=exp_id, tag=self.args.tag, query=query,
+            results=[{"title": p["title"], "url": p["url"], "published": p.get("published", "")} for p in papers[:6]])
+        user = (f"Your focus area: {self.focus}\n\nPrior work found on arXiv:\n{priorwork.for_prompt(papers)}\n\n"
+                f"Current incumbent model.py:\n```python\n{inc}\n```\n\n"
                 f"Referee verdicts so far (other agents included):\n{history(self.args.tag)}\n\n"
                 "Propose ONE change grounded in real astrophysics that you believe gives a real gain. "
                 "Do not repeat rejected ideas.")
@@ -150,7 +157,7 @@ class Proposer:
         (HERE / "runs/code").mkdir(exist_ok=True)
         (HERE / f"runs/code/{exp_id}.py").write_text(code)
         log(self.name, "claim", exp_id=exp_id, tag=self.args.tag, change=h,
-            expected=hyp.get("expected_gain", ""))
+            expected=hyp.get("expected_gain", ""), citations=hyp.get("citations", []))
         self.ref.judge(code, claim=h, agent=self.name, guarded=not self.args.naive,
                        exp_id=exp_id, tag=self.args.tag)
 
@@ -182,6 +189,7 @@ def main():
     ap.add_argument("--rounds", type=int, default=3)
     ap.add_argument("--naive", action="store_true")
     ap.add_argument("--redteam", action="store_true")
+    ap.add_argument("--no-research", action="store_true", help="skip the prior-work Actor")
     ap.add_argument("--tag", default=None)
     ap.add_argument("--models", default=os.getenv("EXO_MODELS", "claude-opus-5-5,gemini-2.5-pro,claude-sonnet-5-5"))
     args = ap.parse_args()

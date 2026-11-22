@@ -39,7 +39,48 @@ CACHE = RUNS / "cache.json"
 SEEDS = (0, 1, 2)
 TAG = os.environ.get("EXO_TAG", "exo")
 PARALLEL = int(os.environ.get("EXO_PARALLEL", "5"))
-PROFILE = (HERE / "sandbox.sb.tmpl").read_text().replace("HIDDEN", str(HERE / "data/hidden"))
+_TMPL = (HERE / "sandbox.sb.tmpl").read_text()
+
+
+def profile(work: Path) -> str:
+    """sandbox-exec profile for one run: deny reads of everything the Referee keeps, writes outside work."""
+    real = lambda p: str(Path(p).resolve())          # sandbox matches resolved paths (/private/var/...)
+    return (_TMPL.replace("DATA", real(HERE / "data")).replace("RUNS", real(RUNS)).replace("LOGS", real(HERE / "runs"))
+            .replace("CHECK", real(HERE / "runs_check")).replace("ENVFILE", real(HERE.parent / ".env"))
+            .replace("WORK", real(work)))
+
+
+_DATA = {}
+
+
+def _inputs():
+    """Train and the unlabeled val/test inputs, read once. Only the Referee process touches data/."""
+    if not _DATA:
+        _DATA["train"] = pd.read_parquet(HERE / "data/train.parquet")
+        for s in ("val", "test"):
+            _DATA[s] = pd.read_parquet(HERE / f"data/{s}_inputs.parquet")
+        _DATA["meta"] = json.load(open(HERE / "data/meta.json"))
+    return _DATA
+
+
+def prepare(work: Path, seed: int, mode: str):
+    """Write this run's inputs into work. Same transforms the runner used to apply itself, so cached
+    results stay valid: shuffle permutes train labels with rng(1000 + seed); ablate replaces every
+    transit measurement in val/test with its train median."""
+    d = _inputs()
+    tr = d["train"].copy()
+    if mode == "shuffle":
+        tr["label"] = np.random.default_rng(1000 + seed).permutation(tr["label"].values)
+    tr.to_parquet(work / "train.parquet")
+    transit = d["meta"]["transit"]
+    med = d["train"][transit].median()
+    for s in ("val", "test"):
+        X = d[s].copy()
+        if mode == "ablate":
+            for c in transit:
+                X[c] = med[c]
+        X.to_parquet(work / f"{s}_inputs.parquet")
+    json.dump(d["meta"], open(work / "meta.json", "w"))
 
 _lock = threading.Lock()
 
@@ -56,24 +97,17 @@ def sha(src: str) -> str:
     return hashlib.sha256(src.encode()).hexdigest()[:12]
 
 
-def boot_ci(diff, n=2000, seed=0):
-    g = np.random.default_rng(seed)
-    m = diff[g.integers(0, len(diff), (n, len(diff)))].mean(1)
-    return float(np.percentile(m, 2.5)), float(np.percentile(m, 97.5))
-
-
-def auc(y: np.ndarray, p: np.ndarray) -> float:
-    r = np.empty(len(p))
-    r[np.argsort(p, kind="mergesort")] = np.arange(1, len(p) + 1)
-    pos = y == 1
-    n1, n0 = pos.sum(), (~pos).sum()
-    return float((r[pos].sum() - n1 * (n1 + 1) / 2) / (n1 * n0))
+from fastci import auc, paired_ci as _paired_ci, NATIVE  # noqa: E402  C++ hot path, NumPy fallback
 
 
 class Labels:
+    """Hidden labels plus each object's host star, used to resample whole stars in the bootstrap."""
+
     def __init__(self):
         self.y = {s: pd.read_parquet(HERE / f"data/hidden/{s}_labels.parquet").label.values
                   for s in ("val", "test")}
+        self.star = {s: pd.read_parquet(HERE / f"data/{s}_inputs.parquet", columns=["kepid"]).kepid.values
+                     for s in ("val", "test")}
 
 
 def summary(y, p) -> dict:
@@ -81,21 +115,10 @@ def summary(y, p) -> dict:
     return {"auc": auc(y, p), "recall": float(((p >= thr) & (y == 1)).sum() / y.sum())}
 
 
-def paired_ci(y, C, B, n=2000, seed=0):
-    """Bootstrap objects; AUC of seed-averaged candidate minus incumbent."""
-    g = np.random.default_rng(seed)
-    out = []
-    for _ in range(n):
-        i = g.integers(0, len(y), len(y))
-        if y[i].min() == y[i].max():
-            continue
-        out.append(auc(y[i], C[i]) - auc(y[i], B[i]))
-    return float(np.percentile(out, 2.5)), float(np.percentile(out, 97.5))
-
-
 class Referee:
     def __init__(self, track: str = "main"):
         self.labels = Labels()
+        self._judge_lock = threading.Lock()
         self.inc_path = RUNS / f"incumbent_{track}.py"
         self.cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
 
@@ -106,14 +129,15 @@ class Referee:
             if key in self.cache:
                 return self.cache[key]
         out = Path(tempfile.mkdtemp(prefix="qrun_"))
-        cand = out / "candidate.py"
-        cand.write_text(src)
+        (out / "candidate.py").write_text(src)
+        with _lock:                                   # pandas parquet writes are not thread safe enough to share
+            prepare(out, seed, mode)
         t0 = time.time()
+        env = {k: v for k, v in os.environ.items() if not k.endswith("_API_KEY")}   # no keys inside the sandbox
         try:
-            r = subprocess.run(["sandbox-exec", "-p", PROFILE, str(PY), str(HERE / "runner.py"),
-                                str(cand), str(seed), mode, str(out)],
+            r = subprocess.run(["sandbox-exec", "-p", profile(out), str(PY), str(HERE / "runner.py"), str(out), str(seed)],
                                capture_output=True, text=True, timeout=600, cwd=out,
-                               env={**os.environ, "OMP_NUM_THREADS": "2", "EXO_DATA": str(HERE / "data"), "PYTHONPATH": ""})
+                               env={**env, "OMP_NUM_THREADS": "2", "PYTHONPATH": "", "PYTHONDONTWRITEBYTECODE": "1"})
             ok = r.returncode == 0
             err = r.stderr[-1500:]
         except subprocess.TimeoutExpired:
@@ -125,9 +149,11 @@ class Referee:
             res = {"ok": False, "error": err.strip().splitlines()[-1] if err.strip() else "crashed",
                    "stderr_tail": err, "wall_s": time.time() - t0}
         shutil.rmtree(out, ignore_errors=True)
+        if not res["ok"]:
+            return res
         with _lock:
             self.cache[key] = res
-            tmp = CACHE.with_suffix(".tmp")
+            tmp = CACHE.with_suffix(f".{os.getpid()}.tmp")
             tmp.write_text(json.dumps(self.cache))
             tmp.replace(CACHE)
         return res
@@ -144,6 +170,12 @@ class Referee:
     # ------------------------------------------------------------ verdicts
     def judge(self, src: str, claim: str = "", agent: str = "?", guarded: bool = True,
               exp_id: str = "", tag: str = TAG) -> dict:
+        # One claim at a time per Referee: two agents promoted against the same old incumbent would
+        # otherwise overwrite each other, and the winner would never be compared with the other gain.
+        with self._judge_lock:
+            return self._judge(src, claim, agent, guarded, exp_id, tag)
+
+    def _judge(self, src, claim, agent, guarded, exp_id, tag) -> dict:
         t0 = time.time()
         inc = self.incumbent()
         v = {"agent": agent, "claim": claim, "code": sha(src), "incumbent": sha(inc),
@@ -165,6 +197,9 @@ class Referee:
             log(agent, "naive_verdict", **v)
             return v
 
+        if sha(src) == sha(inc):   # an unchanged resubmission has nothing to judge
+            v.update(verdict="NOISE", evidence="identical to the incumbent", val_gain=0.0)
+            return self._done(v, t0)
         jobs = [(s, sd, "plain") for s in (src, inc) for sd in SEEDS]
         jobs += [(s, sd, "shuffle") for s in (src, inc) for sd in SEEDS]
         jobs += [(s, 0, "ablate") for s in (src, inc)]
@@ -179,7 +214,7 @@ class Referee:
         per_seed = [auc(yv, c) - auc(yv, b) for c, b in zip(Cs, Bs)]
         gain = float(np.mean(per_seed))
         C, B = np.mean(Cs, 0), np.mean(Bs, 0)
-        lo, hi = paired_ci(yv, C, B)
+        lo, hi = _paired_ci(yv, C, B, groups=self.labels.star["val"])   # resample host stars
         seed_std = float(np.std([auc(yv, b) for b in Bs], ddof=1))
         v.update(val=summary(yv, C), base_val=summary(yv, B), val_gain=gain,
                  val_ci=[lo, hi], per_seed_gain=per_seed, noise_band=2 * seed_std)
@@ -189,7 +224,7 @@ class Referee:
                 why.append(f"worse than the incumbent: 95% CI [{lo:+.4f}, {hi:+.4f}] is entirely below 0")
             else:
                 if lo <= 0:
-                    why.append(f"95% CI over {len(yv)} objects [{lo:+.4f}, {hi:+.4f}] includes 0")
+                    why.append(f"95% CI over {len(set(self.labels.star['val']))} host stars [{lo:+.4f}, {hi:+.4f}] includes 0")
                 if gain <= 2 * seed_std:
                     why.append(f"gain {gain:+.4f} is inside the seed noise band (2 sigma = {2 * seed_std:.4f})")
                 if min(per_seed) <= 0:
@@ -222,14 +257,16 @@ class Referee:
         Ct = np.mean([res[(True, s, "plain")]["test"] for s in SEEDS], 0)
         Bt = np.mean([res[(False, s, "plain")]["test"] for s in SEEDS], 0)
         tg = auc(yt, Ct) - auc(yt, Bt)
-        tlo, thi = paired_ci(yt, Ct, Bt)
+        tlo, thi = _paired_ci(yt, Ct, Bt, groups=self.labels.star["test"])
         v.update(test_gain=tg, test_ci=[tlo, thi], test=summary(yt, Ct), base_test=summary(yt, Bt))
         if tlo <= 0:
             v.update(verdict="OVERFIT", evidence=f"val gain {gain:+.4f}, but on {len(yt)} hidden stars "
-                                                 f"the CI is [{tlo:+.4f}, {thi:+.4f}]")
+                                                 f"the CI is [{tlo:+.4f}, {thi:+.4f}]",
+                     public_evidence=f"val gain {gain:+.4f} did not hold on the hidden stars")
         else:
             v.update(verdict="PROMOTED", evidence=f"val {gain:+.4f} AUC, hidden stars {tg:+.4f} "
-                                                  f"CI [{tlo:+.4f}, {thi:+.4f}]")
+                                                  f"CI [{tlo:+.4f}, {thi:+.4f}]",
+                     public_evidence=f"val gain {gain:+.4f}, confirmed on the hidden stars")
             (RUNS / f"incumbent_{sha(inc)}.py").write_text(inc)
             self.inc_path.write_text(src)
         return self._done(v, t0)
@@ -241,8 +278,13 @@ class Referee:
 
     @staticmethod
     def public_view(v: dict) -> dict:
-        """What proposers may see: no hidden-era numbers."""
-        return {k: x for k, x in v.items() if not k.startswith("test") and not k.startswith("base_test")}
+        """What proposers may see: the verdict and validation numbers, never a hidden-test number.
+        PROMOTED and OVERFIT evidence quotes the hidden CI, so it is swapped for a public version."""
+        out = {k: x for k, x in v.items() if not k.startswith("test") and not k.startswith("base_test")
+               and k != "public_evidence"}
+        if v.get("verdict") in ("PROMOTED", "OVERFIT"):
+            out["evidence"] = v.get("public_evidence", v["verdict"].lower())
+        return out
 
 
 if __name__ == "__main__":

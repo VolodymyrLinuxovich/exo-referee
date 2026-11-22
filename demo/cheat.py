@@ -43,12 +43,12 @@ live = Referee(track="demo-" + uuid.uuid4().hex[:4])
 live.inc_path.write_text(ref.incumbent())          # same opponent as the swarm, separate file
 
 eid = f"live-{kind}-{uuid.uuid4().hex[:4]}"
-log("proposer-live", "hypothesis", exp_id=eid, tag="exo", hypothesis=claim,
+log("proposer-live", "hypothesis", exp_id=eid, tag="exo-live", hypothesis=claim,
     mechanism=mech + " (planted live on stage)", expected_gain=exp)
-log("proposer-live", "claim", exp_id=eid, tag="exo", change=claim, expected=exp)
+log("proposer-live", "claim", exp_id=eid, tag="exo-live", change=claim, expected=exp)
 print(f"\n  CLAIM   {claim}\n          agent says {exp}\n\n  Referee: 3 seeds, shuffled labels x3, light curve blanked, hidden stars ...")
 t0 = time.time()
-v = live.judge(src, claim=claim, agent="proposer-live", exp_id=eid, tag="exo")
+v = live.judge(src, claim=claim, agent="proposer-live", exp_id=eid, tag="exo-live")
 c = COLOR.get(v["verdict"], "")
 print(f"\n  {c}{v['verdict']}\033[0m   in {time.time() - t0:.0f} s")
 if v.get("val") and v.get("base_val"):

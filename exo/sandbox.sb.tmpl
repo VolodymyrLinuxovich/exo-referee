@@ -1,4 +1,8 @@
 (version 1)
 (allow default)
 (deny network*)
-(deny file-read* (subpath "HIDDEN"))
+; nothing the Referee keeps is readable: real data, hidden labels, run logs, cache, API keys
+(deny file-read* (subpath "DATA") (subpath "RUNS") (subpath "LOGS") (subpath "CHECK") (literal "ENVFILE"))
+; writes only into this run's own work folder (and the null device)
+(deny file-write*)
+(allow file-write* (subpath "WORK") (literal "/dev/null"))

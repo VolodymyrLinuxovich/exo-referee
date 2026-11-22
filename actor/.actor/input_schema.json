@@ -1,0 +1,13 @@
+{
+  "title": "Prior work search",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "queries": { "title": "Hypotheses or search phrases", "type": "array", "editor": "stringList",
+                 "prefill": ["centroid offset false positive kepler"], "description": "One search per entry" },
+    "maxPerQuery": { "title": "Papers per query", "type": "integer", "default": 5, "minimum": 1, "maximum": 25 },
+    "categories": { "title": "arXiv categories", "type": "array", "editor": "stringList",
+                    "default": ["astro-ph.EP", "astro-ph.IM", "astro-ph.SR"] }
+  },
+  "required": ["queries"]
+}

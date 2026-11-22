@@ -1,0 +1,9 @@
+{
+  "name": "exo-prior-work",
+  "version": "0.1.0",
+  "description": "Apify Actor: finds prior work on arXiv for an agent's hypothesis, so every claim cites what is already known.",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": { "start": "node src/main.js" },
+  "dependencies": { "apify": "^3.2.0", "crawlee": "^3.11.0" }
+}

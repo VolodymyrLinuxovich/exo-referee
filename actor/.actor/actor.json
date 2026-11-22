@@ -1,0 +1,9 @@
+{
+  "actorSpecification": 1,
+  "name": "exo-prior-work",
+  "title": "Exo Referee prior work",
+  "description": "Finds prior work on arXiv for an agent's hypothesis, so every claim the Referee judges cites what is already known.",
+  "version": "0.1",
+  "input": "./input_schema.json",
+  "dockerfile": "./Dockerfile"
+}
