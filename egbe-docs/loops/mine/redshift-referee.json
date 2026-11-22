@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "redshift-referee",
+  "version": 1,
+  "title": "Improve the planet model, only on verified gains",
+  "category": "Product",
+  "summary": "Agents propose changes to the planet classifier; the referee keeps only gains that hold on stars no agent saw, and checks itself first.",
+  "thumbnail": { "start": "Check the referee", "middle": "Agents propose", "end": "Ship verified gains", "repeat": true },
+  "command": "Run Egbe Loop mine/redshift-referee",
+  "goal": "Find more real planets per telescope follow-up, using only model changes that survive all five gates.",
+  "reviewWhen": "Every 6 hours, and at once if the self-test fails or NASA resolves a candidate we ranked.",
+  "agentInstructions": "Run one cycle with `.venv/bin/python loop/tick.py` from the project root. It runs the self-test, pulls NASA dispositions, runs one guarded agent round (`exo/swarm.py --tag exo-loop`), rebuilds and deploys the site (`loop/deploy.sh` to redshift.egbe.app), writes `egbe-docs/reports/loop-<time>.md` and syncs artifacts. On this Mac a launchd job (`com.exoreferee.loop`) runs it every 6 hours.",
+  "stages": [
+    {
+      "title": "Check the referee",
+      "checkpoint": "All 8 self-test checks pass.",
+      "steps": [
+        { "id": "selftest", "short": "Run the self-test", "description": "Plant three cheats, run an honest control and attack the sandbox. Each must get its expected verdict.",
+          "bullets": ["LEAK, PRIOR and NOISE on the planted cheats", "PROMOTED on the honest control", "The hostile candidate is contained"] }
+      ]
+    },
+    {
+      "title": "Take in new data",
+      "checkpoint": "Every newly resolved candidate is scored against our ranking.",
+      "steps": [
+        { "id": "nasa", "short": "Pull new NASA answers", "description": "Find Kepler candidates NASA has confirmed or rejected since our snapshot and score how our ranking did on them." }
+      ]
+    },
+    {
+      "title": "Let agents try",
+      "checkpoint": "Each claim has a verdict and evidence.",
+      "steps": [
+        { "id": "research", "short": "Research prior work", "description": "Each agent asks the prior-work Apify Actor for arXiv papers on its focus area." },
+        { "id": "propose", "short": "Propose one change", "description": "An agent writes one change to the model, with a hypothesis and citations." },
+        { "id": "judge", "short": "Judge it sealed", "description": "The change runs in a sandbox and faces CRASH, NOISE, LEAK, PRIOR and OVERFIT. The first gate it fails is its verdict." }
+      ]
+    },
+    {
+      "title": "Ship and report",
+      "checkpoint": "The site shows the current model and a report reaches Egbe.",
+      "steps": [
+        { "id": "deploy", "short": "Redeploy the site", "description": "Rebuild the results and publish them on redshift.egbe.app." },
+        { "id": "report", "short": "File the report", "description": "Write what was judged, what was promoted and what NASA resolved, then sync it to this business." }
+      ]
+    }
+  ],
+  "transitions": [
+    { "from": "selftest", "to": "nasa", "outcome": "Referee is sound", "label": "All 8 checks pass", "description": "The loop may judge agent claims this cycle." },
+    { "from": "selftest", "to": "report", "outcome": "Halt the loop", "label": "A gate or the sandbox fails a check", "description": "No claim is judged until a person fixes the referee. The report says which check failed." },
+    { "from": "nasa", "to": "research" },
+    { "from": "research", "to": "propose" },
+    { "from": "propose", "to": "judge" },
+    { "from": "judge", "to": "deploy", "outcome": "Promote", "label": "The claim passes all five gates", "description": "It becomes the new model, because its gain held on stars no agent has seen.", "example": "Centroid shifts in sigma: +0.0185 AUC on hidden stars" },
+    { "from": "judge", "to": "deploy", "outcome": "Reject", "label": "The claim fails a gate", "description": "The model stays as it was. Agents see the verdict next round, never a hidden-test number.", "example": "Catalog name: LEAK, still 0.999 on shuffled labels" },
+    { "from": "deploy", "to": "report" },
+    { "from": "report", "to": "selftest", "outcome": "Next cycle", "label": "Six hours later", "description": "Start again with the self-test." }
+  ],
+  "terms": { "budget": "Two Claude agents every 6 hours, on this Mac while it is awake. More agents, a faster cadence or new spending needs Volodymyr's approval." }
+}
