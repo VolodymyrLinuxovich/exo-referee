@@ -192,7 +192,7 @@ def main():
     ap.add_argument("--redteam", action="store_true")
     ap.add_argument("--no-research", action="store_true", help="skip the prior-work Actor")
     ap.add_argument("--tag", default=None)
-    ap.add_argument("--models", default=os.getenv("EXO_MODELS", "claude-opus-5-5,gemini-2.5-pro,claude-sonnet-5-5"))
+    ap.add_argument("--models", default=os.getenv("EXO_MODELS", "claude-opus-5-5,claude-sonnet-5-5"))
     args = ap.parse_args()
     args.models = args.models.split(",")
     args.tag = args.tag or ("exo-naive" if args.naive else "exo")
