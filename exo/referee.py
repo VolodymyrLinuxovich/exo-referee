@@ -40,7 +40,7 @@ CACHE = RUNS / "cache.json"
 SEEDS = (0, 1, 2)
 TAG = os.environ.get("EXO_TAG", "exo")
 PARALLEL = int(os.environ.get("EXO_PARALLEL", "5"))
-def _merge_into_cache(new: dict):
+def _merge_into_cache(new: dict, fallback: dict | None = None):
     """Add entries to cache.json without losing anyone else's.
 
     Several processes (the swarm, the naive loop, the live demo) share one cache. Each used to write
@@ -51,7 +51,9 @@ def _merge_into_cache(new: dict):
         try:
             disk = json.loads(CACHE.read_text()) if CACHE.exists() else {}
         except json.JSONDecodeError:
-            disk = {}
+            # never replace a damaged cache with one entry: keep the bad file, rebuild from memory
+            shutil.copy(CACHE, CACHE.with_suffix(f".corrupt-{int(time.time())}.json"))
+            disk = dict(fallback or {})
         disk.update(new)
         tmp = CACHE.with_suffix(f".{os.getpid()}.tmp")
         tmp.write_text(json.dumps(disk))
@@ -141,14 +143,17 @@ class Referee:
         self._judge_lock = threading.Lock()
         self.inc_path = RUNS / f"incumbent_{track}.py"
         self.cache = json.loads(CACHE.read_text()) if CACHE.exists() else {}
+        self._cache_mtime = CACHE.stat().st_mtime if CACHE.exists() else None
 
     # ------------------------------------------------------------ sandbox
     def run(self, src: str, seed: int, mode: str = "plain") -> dict:
         key = f"{sha(src)}:{seed}:{mode}"
         with _lock:
-            if key not in self.cache and CACHE.exists():      # another process may have run it meanwhile
+            # another process may have run it meanwhile; re-read only if the file changed since we last saw it
+            if key not in self.cache and CACHE.exists() and CACHE.stat().st_mtime != self._cache_mtime:
                 try:
                     self.cache.update(json.loads(CACHE.read_text()))
+                    self._cache_mtime = CACHE.stat().st_mtime
                 except json.JSONDecodeError:
                     pass
             if key in self.cache:
@@ -178,7 +183,8 @@ class Referee:
             return res
         with _lock:
             self.cache[key] = res
-            _merge_into_cache({key: res})
+            _merge_into_cache({key: res}, fallback=self.cache)
+            self._cache_mtime = CACHE.stat().st_mtime
         return res
 
     def batch(self, jobs):

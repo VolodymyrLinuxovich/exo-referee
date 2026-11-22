@@ -15,11 +15,12 @@ jobs:
           uv pip install --python .venv/bin/python numpy pandas pyarrow scikit-learn scipy anthropic openai python-dotenv
       - name: C++ statistics
         run: make -C exo/native
-      - name: NASA Kepler data
+      - name: NASA Kepler data (pinned snapshot, so verdicts cannot drift with archive updates)
         working-directory: exo
         run: |
           mkdir -p data/raw data/hidden
-          curl -sSf -o data/raw/koi.csv "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+cumulative&format=csv"
+          gunzip -c data/snapshot/koi_2026-11-22.csv.gz > data/raw/koi.csv
+          echo "a85348f20082d24f  expected sha256 prefix"; shasum -a 256 data/raw/koi.csv
           ../.venv/bin/python prep.py
       - name: Self-test
         working-directory: exo

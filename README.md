@@ -277,8 +277,9 @@ make -C exo/native                       # C++ statistics (optional; NumPy fallb
 echo "ANTHROPIC_API_KEY=..." > .env      # agents; APIFY_TOKEN=... to run the Actor on Apify
 
 cd exo
-mkdir -p data/raw data/hidden && curl -o data/raw/koi.csv \
-  "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+cumulative&format=csv"
+mkdir -p data/raw data/hidden && gunzip -c data/snapshot/koi_2026-11-22.csv.gz > data/raw/koi.csv
+# (the exact table used for every result here; for today's archive instead:
+#  curl -o data/raw/koi.csv "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+*+from+cumulative&format=csv")
 ../.venv/bin/python prep.py
 ../.venv/bin/python swarm.py --proposers 3 --rounds 4 --redteam     # guarded loop
 ../.venv/bin/python swarm.py --naive --proposers 3 --rounds 4        # naive loop
@@ -286,7 +287,7 @@ cd ..
 .venv/bin/python demo/cheat.py name --fresh                          # live: plant a cheat, watch LEAK
 .venv/bin/python demo/followup.py                                    # what each loop is worth
 .venv/bin/python exo/fastci.py                                       # C++ vs NumPy check
-.venv/bin/python exo/selftest.py                                     # check the checker: gates, sandbox, statistics
+.venv/bin/python exo/selftest.py                                     # check the checker, cold (add --quick to reuse cache)
 ```
 
 The Actor is deployed on the Apify platform as `enterprising_arboretum_iq2/exo-prior-work`; one search takes about 5 seconds. With `APIFY_TOKEN` and `APIFY_ACTOR=enterprising_arboretum_iq2~exo-prior-work` in `.env`, the agents call it there. Run it alone (`actor/`): put `{"queries": ["centroid offset false positive kepler"]}` in

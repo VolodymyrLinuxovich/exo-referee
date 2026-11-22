@@ -60,22 +60,43 @@ def _dedupe(items: list[dict]) -> list[dict]:
     return out
 
 
-def _arxiv_id(url: str) -> str:
-    """'http://arxiv.org/abs/1803.04526v2' and 'https://arxiv.org/abs/1803.04526' -> '1803.04526'."""
-    tail = url.strip().rstrip("/").split("/abs/")[-1]
-    return re.sub(r"v\d+$", "", tail).lower()
+_ARXIV_ID = re.compile(r"(\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z]{2})?/\d{7})", re.I)
 
 
-def check_citations(cited: list[str], papers: list[dict]) -> dict:
-    """Which citations are papers the search actually returned. A citation from the model's memory
-    may be real, but nobody has looked at it in this run, so it is reported separately."""
-    found = {_arxiv_id(p["url"]) for p in papers if p.get("url")}
-    cited = [c for c in cited if isinstance(c, str) and c.strip()]
-    ok = [c for c in cited if _arxiv_id(c) in found]
-    return {"total": len(cited), "from_search": len(ok), "from_memory": [c for c in cited if c not in ok]}
+def _arxiv_id(ref: str) -> str:
+    """The arXiv id in any citation form: /abs/ or /pdf/ URLs, '.pdf', 'arXiv:1803.04526', a version
+    suffix, or an old-style id like astro-ph/0206228. Empty string if there is none."""
+    m = _ARXIV_ID.search(ref or "")
+    return m.group(1).lower() if m else ""
 
 
-def for_prompt(papers: list[dict], k: int = 6) -> str:
+def _as_refs(cited) -> list[str]:
+    """Models return citations as a list of URLs, one string, or objects with a url field."""
+    if isinstance(cited, str):
+        cited = [cited]
+    out = []
+    for c in cited or []:
+        if isinstance(c, dict):
+            c = c.get("url") or c.get("id") or ""
+        if isinstance(c, str) and c.strip():
+            out.append(c.strip())
+    return out
+
+
+def check_citations(cited, papers: list[dict]) -> dict:
+    """Which citations are papers the agent was actually shown. A citation from the model's memory
+    may be real, but nobody has looked at it in this run, so it is reported separately.
+    Pass the same papers that went into the prompt."""
+    shown = {_arxiv_id(p["url"]) for p in papers if p.get("url")} - {""}
+    refs = _as_refs(cited)
+    ok = [c for c in refs if _arxiv_id(c) in shown]
+    return {"total": len(refs), "from_search": len(ok), "from_memory": [c for c in refs if c not in ok]}
+
+
+SHOWN = 6   # papers put in the prompt
+
+
+def for_prompt(papers: list[dict], k: int = SHOWN) -> str:
     if not papers:
         return "No prior work found."
     return "\n".join(f"- {p['title']} ({p.get('published', '')[:4]}) <{p['url']}>: {p.get('abstract', '')[:240]}"
