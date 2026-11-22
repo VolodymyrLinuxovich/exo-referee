@@ -46,6 +46,16 @@ statistics run in **C++**.
 
 ---
 
+## How It Works, in 20 Seconds
+
+[![Claims fly through five gates. Cheats explode at the gate that catches them, real gains come out promoted. Then a real planet transit next to a background binary whose light center shifts.](docs/demo.gif)](docs/demo.mp4)
+
+Every claim an agent makes flies through the gates: CRASH, NOISE, LEAK, PRIOR, OVERFIT. Cheats die at the gate
+that catches them; real gains come out promoted. Then the discovery an agent made: a background binary moves the
+light's center during the dip, a real planet does not. [Full video (MP4)](docs/demo.mp4).
+
+---
+
 ## The Problem
 
 Everyone is building loops that improve themselves: agents that write the code, run the experiment, read the score
