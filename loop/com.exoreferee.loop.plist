@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Runs one Exo Referee cycle every 6 hours. Install: cp to ~/Library/LaunchAgents and launchctl load. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.exoreferee.loop</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/volodymyrborysenko/Code/exo-referee/.venv/bin/python</string>
+    <string>/Users/volodymyrborysenko/Code/exo-referee/loop/tick.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/volodymyrborysenko/Code/exo-referee</string>
+  <key>StartInterval</key><integer>21600</integer>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/Users/volodymyrborysenko/.nvm/versions/node/v20.20.2/bin</string></dict>
+  <key>StandardOutPath</key><string>/Users/volodymyrborysenko/Code/exo-referee/loop/loop.log</string>
+  <key>StandardErrorPath</key><string>/Users/volodymyrborysenko/Code/exo-referee/loop/loop.log</string>
+</dict>
+</plist>

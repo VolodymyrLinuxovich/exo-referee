@@ -13,3 +13,5 @@ exo/data/*.parquet
 __pycache__/
 exo/native/*.dylib
 exo/native/*.so
+loop/state.json
+loop/loop.log
