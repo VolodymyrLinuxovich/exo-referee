@@ -11,3 +11,5 @@ site/dist/
 exo/runs/
 exo/data/*.parquet
 __pycache__/
+exo/native/*.dylib
+exo/native/*.so
