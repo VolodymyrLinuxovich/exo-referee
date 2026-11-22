@@ -22,6 +22,18 @@ Same agents, same data, same afternoon.
 (`kepler_name`, `koi_score`, `koi_fpflag_*`), the way a genuinely new candidate arrives.
 The naive loop accepted a catalog-name cheat in its first minute and then rejected every honest idea.
 
+What that means in practice: the hidden stars hold 539 real planets. Give each final model 539
+follow-up observations, its top picks.
+
+| Model | Real planets found | False alarms followed up |
+|---|---|---|
+| Naive loop | 416 | 123 |
+| Starting model | 484 | 55 |
+| Guarded loop | **521** | **18** |
+
+Same telescope time: the guarded loop finds 105 more planets with about 7x fewer false alarms
+(`demo/followup.py`).
+
 An Opus agent independently rediscovered centroid vetting, the way astronomers catch background
 eclipsing binaries, and it was promoted at +0.016 AUC on hidden stars.
 

@@ -56,12 +56,23 @@ h2 { font: 500 clamp(34px, 4.6vw, 58px)/1.04 var(--sans); letter-spacing: -.03em
   background: radial-gradient(120% 140% at 0% 0%, rgba(60,90,170,.10), transparent 55%), rgba(6,9,18,.66); backdrop-filter: blur(16px); overflow: hidden; }
 
 /* result gauge */
-.gauge { padding: 30px 30px 18px; }
-.gauge svg { width: 100%; height: auto; overflow: visible; }
-.gauge text { font-family: var(--sans); }
-.gauge-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 0 30px 26px; flex-wrap: wrap; }
-.phase { font-size: 15px; color: var(--ink-2); min-height: 24px; transition: opacity .3s; }
-.phase b { color: var(--ink); font-weight: 500; }
+.duel { display: grid; grid-template-columns: 1fr 1fr; }
+.side { padding: 28px 28px 26px; }
+.side + .side { border-left: 1px solid var(--line); }
+.side h3 { margin: 0 0 4px; font-size: 17px; font-weight: 500; }
+.side .auc { color: var(--ink-3); font-size: 13.5px; margin: 0 0 18px; }
+.side canvas { width: 100%; }
+.tally { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.tally .v { font: 500 clamp(40px, 4.6vw, 58px)/1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.tally .k { color: var(--ink-2); font-size: 14px; margin-top: 6px; }
+.v.real { color: #d8e8ff; } .v.false { color: var(--bad); }
+.verdict-line { padding: 22px 28px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.verdict-line p { margin: 0; font-size: clamp(18px, 2vw, 22px); font-weight: 300; color: var(--ink-2); max-width: 760px; }
+.verdict-line b { color: var(--ink); font-weight: 500; }
+.key { display: flex; gap: 20px; color: var(--ink-3); font-size: 13px; padding: 0 28px 4px; }
+.key i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+.key .kx { color: var(--bad); font-weight: 600; margin-right: 7px; font-size: 15px; }
+.key .kr { background: #d8e8ff; box-shadow: 0 0 8px #9cc3ff; } .key .kf { background: var(--bad); border-radius: 2px; }
 .replay { height: 36px; font-size: 13.5px; padding: 0 16px; }
 .footnote { color: var(--ink-3); font-size: 13.5px; margin-top: 16px; max-width: 900px; }
 .footnote a { color: var(--ink-2); }
@@ -105,6 +116,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s ease, transform .8s ease; }
 .reveal.in { opacity: 1; transform: none; }
 @media (max-width: 900px) {
+  .duel { grid-template-columns: 1fr; } .side + .side { border-left: 0; border-top: 1px solid var(--line); }
   .proof { grid-template-columns: 1fr; }
   .gate-row { grid-template-columns: repeat(5, 1fr); } .gate-row span { display: none; } .gate-row em { font-size: 14px; }
   .gate-row div { padding: 14px 4px 16px; } .gate-row b { font-size: 11px; letter-spacing: .04em; }
@@ -133,12 +145,20 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 
 <section id="result"><div class="wrap">
   <h2 class="reveal">Same agents. Same data. <em>One loop has a referee.</em></h2>
-  <p class="lead reveal">Claude agents spent an afternoon improving a model that tells real exoplanets from false positives in Kepler telescope data. Watch what each loop believes, then what survives contact with new candidates.</p>
-  <div class="stage reveal">
-    <div class="gauge"><svg id="gauge" viewBox="0 0 1000 300" role="img" aria-label="Believed versus real AUC for each loop"></svg></div>
-    <div class="gauge-foot"><div class="phase" id="phase">&nbsp;</div><button class="btn line replay" id="replay">Run it again</button></div>
+  <p class="lead reveal">Claude agents spent an afternoon improving a planet finder on Kepler telescope data. Then each loop handed astronomers its best <span class="nreal">539</span> candidates from stars it had never seen. That is exactly how many real planets are hiding there.</p>
+  <div class="stage reveal" id="duel">
+    <div class="duel">
+      <div class="side"><h3>Without a referee</h3><p class="auc">Believed its model scored 0.9999. It had read the answer from the catalog.</p>
+        <canvas id="g-naive" aria-label="Follow-up picks of the loop without a referee"></canvas>
+        <div class="tally"><div><div class="v real" id="n-real">0</div><div class="k">real planets found</div></div><div><div class="v false" id="n-false">0</div><div class="k">false alarms followed up</div></div></div></div>
+      <div class="side"><h3>With Spectre</h3><p class="auc">Every change verified on stars no agent had seen.</p>
+        <canvas id="g-guard" aria-label="Follow-up picks of the loop with Spectre"></canvas>
+        <div class="tally"><div><div class="v real" id="g-real">0</div><div class="k">real planets found</div></div><div><div class="v false" id="g-false">0</div><div class="k">false alarms followed up</div></div></div></div>
+    </div>
+    <div class="key"><span><i class="kr"></i>real planet</span><span><b class="kx">&times;</b>false positive</span></div>
+    <div class="verdict-line"><p id="punch">&nbsp;</p><button class="btn line replay" id="replay">Run it again</button></div>
   </div>
-  <p class="footnote reveal">ROC AUC on 1,505 Kepler Objects of Interest around 1,328 held&#8209;out stars, with the columns that encode the answer removed. Data from the NASA Exoplanet Archive. <a href="compare.html">Every claim, charted</a>.</p>
+  <p class="footnote reveal">Each model's top picks among 1,505 Kepler Objects of Interest around 1,328 held&#8209;out stars, scored with the columns that encode the answer removed, the way a new candidate arrives. Data from the NASA Exoplanet Archive. <a href="compare.html">Every claim, charted</a>.</p>
 </div></section>
 
 <section id="referee"><div class="wrap">
@@ -315,85 +335,57 @@ const dataReady = fetch("data.json").then(r => r.json()).then(d => {
   const gt = d.guarded && d.guarded.timeline; if (gt && gt.length > 1) R.guardSteps = gt.slice(1).map(p => p.auc);
 }).catch(() => {});
 
-/* ---------- result gauge ---------- */
+/* ---------- follow-up budget: each loop's best picks, real or false ---------- */
 (function () {
-  const svg = document.getElementById("gauge"), phase = document.getElementById("phase");
-  const NS = "http://www.w3.org/2000/svg";
-  const lo = 0.88, hi = 1.0;
-  let M, L, Rr, F, Y1, Y2, VH;
-  function geo() {
-    M = svg.getBoundingClientRect().width < 640;
-    L = M ? 30 : 150; Rr = M ? 700 : 860; F = M ? 2.6 : 1;
-    Y1 = M ? 230 : 104; Y2 = M ? 500 : 206; VH = M ? 700 : 300;
-    svg.setAttribute("viewBox", `0 0 1000 ${VH}`);
-  }
-  const X = v => L + (Rr - L) * (v - lo) / (hi - lo);
-  const el = (t, a, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; };
-  let rows, scan, timer = [];
-  function build() {
-    geo(); svg.innerHTML = "";
-    const defs = el("defs", {});
-    defs.innerHTML = `<filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <linearGradient id="scanG" x1="0" x2="1"><stop offset="0" stop-color="#9cc3ff" stop-opacity="0"/><stop offset=".8" stop-color="#9cc3ff" stop-opacity=".22"/><stop offset="1" stop-color="#cfe0ff" stop-opacity=".9"/></linearGradient>`;
-    const top = M ? 120 : 40, bot = VH - (M ? 70 : 38);
-    for (let v = 0.88; v <= 1.0001; v += M ? 0.04 : 0.02) {
-      el("line", { x1: X(v), x2: X(v), y1: top, y2: bot, stroke: "rgba(255,255,255,.07)" });
-      el("text", { x: X(v), y: bot + 24 * F, "font-size": 12 * F, fill: "#6d7588", "text-anchor": "middle" }).textContent = v.toFixed(2);
+  const COLS = 28;
+  let F = null;
+  const cv = { naive: document.getElementById("g-naive"), guarded: document.getElementById("g-guard") };
+  const num = { naive: ["n-real", "n-false"], guarded: ["g-real", "g-false"] };
+  function layout(c, n) { const w = c.getBoundingClientRect().width, cell = w / COLS, rows = Math.ceil(n / COLS); c.style.height = rows * cell + "px"; return fit(c); }
+  const cells = k => F.loops[k].picks;   // the model's actual ranked picks, 1 = real planet
+  function draw(c, g, picks, upto, now) {
+    const { x, w } = g, cell = w / COLS, r = cell * .3;
+    x.clearRect(0, 0, g.w, g.h);
+    for (let i = 0; i < picks.length; i++) {
+      const cx = (i % COLS + .5) * cell, cy = (Math.floor(i / COLS) + .5) * cell;
+      if (i >= upto) { x.fillStyle = "rgba(255,255,255,.05)"; x.beginPath(); x.arc(cx, cy, r * .55, 0, 6.283); x.fill(); continue; }
+      const fresh = Math.max(0, 1 - (upto - i) / 40);
+      if (picks[i]) {
+        x.shadowColor = "#9cc3ff"; x.shadowBlur = 6 + fresh * 10;
+        const gr = x.createRadialGradient(cx - r * .35, cy - r * .35, 0, cx, cy, r);
+        gr.addColorStop(0, "#ffffff"); gr.addColorStop(.6, "#b9d4ff"); gr.addColorStop(1, "#5d86c7");
+        x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, r * (1 + fresh * .5), 0, 6.283); x.fill(); x.shadowBlur = 0;
+      } else {
+        const a = r * (.9 + fresh * .6);
+        x.strokeStyle = "#ff7a59"; x.lineWidth = Math.max(1.6, cell * .1); x.shadowColor = "#ff7a59"; x.shadowBlur = 8 + fresh * 12;
+        x.beginPath(); x.moveTo(cx - a, cy - a); x.lineTo(cx + a, cy + a); x.moveTo(cx + a, cy - a); x.lineTo(cx - a, cy + a); x.stroke(); x.shadowBlur = 0;
+      }
     }
-    el("line", { x1: X(R.start), x2: X(R.start), y1: top - 10, y2: bot, stroke: "rgba(255,255,255,.28)", "stroke-dasharray": "3 4" });
-    el("text", { x: X(R.start), y: top - 18, "font-size": 12 * F, fill: "#a9b1c2", "text-anchor": M ? "end" : "middle" }).textContent = `start ${R.start.toFixed(3)}`;
-    scan = el("rect", { x: L - 120, y: top - 4, width: 120, height: bot - top + 8, fill: "url(#scanG)", opacity: 0 });
-    rows = [["naive", "Without a referee", Y1, "#ff7a59"], ["guard", "With Spectre", Y2, "#5fd39a"]].map(([k, name, y, col]) => {
-      if (M) el("text", { x: L, y: y - 46, "font-size": 15 * F, fill: "#eef1f6", "font-weight": 500 }).textContent = name;
-      else el("text", { x: 0, y: y + 5, "font-size": 15, fill: "#eef1f6", "font-weight": 500 }).textContent = name;
-      el("line", { x1: L, x2: Rr, y1: y, y2: y, stroke: "rgba(255,255,255,.12)", "stroke-width": 2 * (M ? 2 : 1) });
-      const trail = el("line", { x1: X(R.start), x2: X(R.start), y1: y, y2: y, stroke: col, "stroke-width": 3 * (M ? 2 : 1), "stroke-linecap": "round", opacity: .55 });
-      const ghost = el("circle", { cx: X(R.start), cy: y, r: 9 * (M ? 2 : 1), fill: "none", stroke: "#eef1f6", "stroke-width": 1.5, "stroke-dasharray": "3 3", opacity: 0 });
-      const ghostT = el("text", { x: X(R.start), y: y - 22 * (M ? 2.2 : 1), "font-size": 12 * F, fill: "#a9b1c2", "text-anchor": "middle", opacity: 0 });
-      const dot = el("circle", { cx: X(R.start), cy: y, r: 9 * (M ? 2 : 1), fill: "#eef1f6", filter: "url(#glow)" });
-      const val = el("text", { x: Rr + 30 * (M ? .8 : 1), y: y + 12 * F, "font-size": 34 * (M ? 2.2 : 1), fill: "#eef1f6", "font-weight": 500, "letter-spacing": "-1" });
-      val.textContent = R.start.toFixed(3);
-      const tag = el("text", { x: M ? L : Rr + 31, y: M ? y + 62 : y + 32, "font-size": 12 * F, fill: "#6d7588" }); tag.textContent = "believes";
-      return { k, y, col, trail, ghost, ghostT, dot, val, tag, v: R.start };
-    });
   }
-  function move(r, to, ms, digits, done) {
-    const from = r.v, t0 = performance.now();
+  let run = 0;
+  function play() {
+    const id = ++run, P = { naive: cells("naive"), guarded: cells("guarded") }, G = {};
+    for (const k in cv) G[k] = layout(cv[k], F.real);
+    document.getElementById("punch").innerHTML = "&nbsp;";
+    const T = 4200, t0 = performance.now();
     (function f(now) {
-      const t = Math.min(1, (now - t0) / ms), v = lerp(from, to, ease(t));
-      r.v = v; r.dot.setAttribute("cx", X(v)); r.trail.setAttribute("x2", X(v)); r.val.textContent = v.toFixed(digits || 3);
-      if (t < 1) requestAnimationFrame(f); else if (done) done();
+      if (id !== run) return;
+      const t = Math.min(1, (now - t0) / T), upto = Math.round(ease(t) * F.real);
+      for (const k in cv) {
+        draw(cv[k], G[k], P[k], upto, now);
+        const seen = P[k].slice(0, upto), real = seen.reduce((a, b) => a + b, 0);
+        document.getElementById(num[k][0]).textContent = real; document.getElementById(num[k][1]).textContent = upto - real;
+      }
+      if (t < 1) requestAnimationFrame(f);
+      else {
+        const n = F.loops.naive[String(F.real)], g = F.loops.guarded[String(F.real)];
+        document.getElementById("punch").innerHTML = `Same telescope time. Spectre finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>. The unchecked loop ended worse than where it started.`;
+      }
     })(t0);
   }
-  const at = (ms, fn) => timer.push(setTimeout(fn, ms));
-  function say(h) { phase.style.opacity = 0; at(180, () => { phase.innerHTML = h; phase.style.opacity = 1; }); }
-  function play() {
-    timer.forEach(clearTimeout); timer = []; build();
-    const [n, g] = rows;
-    say("Both loops start from the same model.");
-    at(900, () => { say("<b>Without a referee</b>, an agent reads the catalog name. Accepted in its first minute."); move(n, R.naiveBelief, 900, 4); });
-    R.guardSteps.forEach((v, i) => at(1700 + i * 900, () => { if (i === 0) say("<b>With Spectre</b>, that cheat dies at LEAK. Real physics gets promoted, one verified step at a time."); move(g, v, 700, 4); }));
-    const T = 1700 + R.guardSteps.length * 900 + 600;
-    at(T, () => {
-      say("Now score both on <b>new candidates</b>, the way a real discovery arrives.");
-      scan.setAttribute("opacity", 1); const t0 = performance.now();
-      (function f(now) { const t = Math.min(1, (now - t0) / 1300); scan.setAttribute("x", lerp(L - 120, Rr + 10, ease(t))); if (t < 1) requestAnimationFrame(f); else scan.setAttribute("opacity", 0); })(t0);
-    });
-    at(T + 1400, () => {
-      for (const r of rows) {
-        r.ghost.setAttribute("cx", X(r.v)); r.ghost.setAttribute("opacity", .7);
-        r.ghostT.setAttribute("x", X(r.v)); r.ghostT.textContent = "believed"; r.ghostT.setAttribute("opacity", r.k === "naive" ? 1 : 0);
-        r.tag.textContent = "on new candidates";
-      }
-      move(n, R.naiveReal, 1100, 3, () => { n.dot.setAttribute("fill", n.col); n.val.setAttribute("fill", n.col); });
-      move(g, R.guardReal, 700, 3, () => { g.dot.setAttribute("fill", g.col); g.val.setAttribute("fill", g.col); });
-      svg.animate([{ transform: "translateX(0)" }, { transform: "translateX(-4px)" }, { transform: "translateX(4px)" }, { transform: "translateX(0)" }], { duration: 260, delay: 900 });
-    });
-    at(T + 2800, () => say(`The unchecked loop fell <b>below where it started</b>. Spectre's model held at <b>${R.guardReal.toFixed(3)}</b>.`));
-  }
-  document.getElementById("replay").addEventListener("click", play);
-  dataReady.then(() => { build(); whenSeen(svg, play, .3); });
-  let lastM = null; addEventListener("resize", () => { const m = svg.getBoundingClientRect().width < 640; if (m !== lastM && lastM !== null) play(); lastM = m; });
+  document.getElementById("replay").addEventListener("click", () => F && play());
+  addEventListener("resize", () => { if (F) play(); });
+  fetch("followup.json").then(r => r.json()).then(d => { F = d; document.querySelectorAll(".nreal").forEach(e => e.textContent = d.real); whenSeen(document.getElementById("duel"), play, .3); }).catch(() => {});
 })();
 
 /* ---------- gates pipeline ---------- */
