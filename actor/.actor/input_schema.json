@@ -3,11 +3,37 @@
   "type": "object",
   "schemaVersion": 1,
   "properties": {
-    "queries": { "title": "Hypotheses or search phrases", "type": "array", "editor": "stringList",
-                 "prefill": ["centroid offset false positive kepler"], "description": "One search per entry" },
-    "maxPerQuery": { "title": "Papers per query", "type": "integer", "default": 5, "minimum": 1, "maximum": 25 },
-    "categories": { "title": "arXiv categories", "type": "array", "editor": "stringList",
-                    "default": ["astro-ph.EP", "astro-ph.IM", "astro-ph.SR"] }
+    "queries": {
+      "title": "Hypotheses or search phrases",
+      "type": "array",
+      "editor": "stringList",
+      "prefill": [
+        "centroid offset false positive kepler"
+      ],
+      "description": "One search per entry"
+    },
+    "maxPerQuery": {
+      "title": "Papers per query",
+      "type": "integer",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 25,
+      "description": "How many papers to return for each search (1 to 25)",
+      "editor": "number"
+    },
+    "categories": {
+      "title": "arXiv categories",
+      "type": "array",
+      "editor": "stringList",
+      "default": [
+        "astro-ph.EP",
+        "astro-ph.IM",
+        "astro-ph.SR"
+      ],
+      "description": "Limit results to these arXiv categories; empty searches all of arXiv"
+    }
   },
-  "required": ["queries"]
+  "required": [
+    "queries"
+  ]
 }

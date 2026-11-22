@@ -42,7 +42,7 @@ statistics run in **C++**.
 | [Site](https://spectre-planets.vercel.app) | The result, the five gates running live, the agent's discovery |
 | [Every claim, charted](https://spectre-planets.vercel.app/compare.html) | Each loop's model after every claim, and what it really scores |
 | `demo/cheat.py` | Plant a cheat in the running loop and watch the Referee rule on it |
-| `actor/` | The `exo-prior-work` Apify Actor (Crawlee) the agents use for research |
+| `actor/` | The `exo-prior-work` Apify Actor (Crawlee) the agents use for research, deployed on Apify as `enterprising_arboretum_iq2/exo-prior-work` |
 
 ---
 
@@ -277,7 +277,7 @@ cd ..
 .venv/bin/python exo/fastci.py                                       # C++ vs NumPy check
 ```
 
-Run the Actor alone (`actor/`): put `{"queries": ["centroid offset false positive kepler"]}` in
+The Actor is deployed on the Apify platform as `enterprising_arboretum_iq2/exo-prior-work`; one search takes about 5 seconds. With `APIFY_TOKEN` and `APIFY_ACTOR=enterprising_arboretum_iq2~exo-prior-work` in `.env`, the agents call it there. Run it alone (`actor/`): put `{"queries": ["centroid offset false positive kepler"]}` in
 `storage/key_value_stores/default/INPUT.json` and run `npm start`, or push it with `apify push` and call it by name.
 
 ---
