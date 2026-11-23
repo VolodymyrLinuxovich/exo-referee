@@ -5,6 +5,7 @@ On the Apify platform when APIFY_TOKEN is set (Actor id from APIFY_ACTOR, defaul
 Returns a list of {title, authors, published, url, abstract}. Never raises: research is
 optional, so a failed search just means the agent proposes without citations.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,9 +34,12 @@ def search(queries: list[str], per_query: int = 4) -> list[dict]:
 def _platform(payload: dict) -> list[dict]:
     actor = os.environ.get("APIFY_ACTOR", "exo-prior-work").replace("/", "~")
     url = f"https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items?timeout=120"
-    req = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
-                                 headers={"Content-Type": "application/json",
-                                          "Authorization": f"Bearer {os.environ['APIFY_TOKEN']}"})
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.environ['APIFY_TOKEN']}"},
+    )
     with urllib.request.urlopen(req, timeout=150) as r:
         return _dedupe(json.load(r))
 
@@ -93,17 +97,20 @@ def check_citations(cited, papers: list[dict]) -> dict:
     return {"total": len(refs), "from_search": len(ok), "from_memory": [c for c in refs if c not in ok]}
 
 
-SHOWN = 6   # papers put in the prompt
+SHOWN = 6  # papers put in the prompt
 
 
 def for_prompt(papers: list[dict], k: int = SHOWN) -> str:
     if not papers:
         return "No prior work found."
-    return "\n".join(f"- {p['title']} ({p.get('published', '')[:4]}) <{p['url']}>: {p.get('abstract', '')[:240]}"
-                     for p in papers[:k])
+    return "\n".join(
+        f"- {p['title']} ({p.get('published', '')[:4]}) <{p['url']}>: {p.get('abstract', '')[:240]}"
+        for p in papers[:k]
+    )
 
 
 if __name__ == "__main__":
     import sys
+
     for p in search(sys.argv[1:] or ["centroid offset false positive kepler"]):
         print(p["published"], p["title"][:90], p["url"])

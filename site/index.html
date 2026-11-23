@@ -1,539 +1,1513 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Redshift, the referee for self-improving AI</title>
-<meta name="description" content="Agents that improve themselves grade their own work. Redshift checks every claim before it ships.">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap" rel="stylesheet">
-<style>
-:root {
-  --space: #03050b; --ink: #eef1f6; --ink-2: #a9b1c2; --ink-3: #6d7588; --line: rgba(255,255,255,.09);
-  --glass: rgba(10,14,26,.6); --good: #5fd39a; --bad: #ff7a59; --blue: #9cc3ff; --gold: #ffc56b;
-  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--space); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-a { color: inherit; }
-em { font-family: var(--serif); font-style: italic; font-weight: 400; }
-canvas, svg { display: block; }
-
-/* sky */
-#sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -3; }
-.planet { position: fixed; border-radius: 50%; z-index: -2; pointer-events: none; will-change: transform; }
-#world { position: fixed; z-index: -2; pointer-events: none; width: 54vmax; height: 54vmax; right: -17vmax; top: 26vh; opacity: .82; will-change: transform; }
-.rock { width: 9vmax; height: 9vmax; left: 4vw; top: 118vh;
-  background: radial-gradient(circle at 32% 30%, #b9c7d8, #5a6b83 45%, #141b27 75%);
-  box-shadow: inset -2.2vmax -1.4vmax 2.4vmax rgba(0,0,0,.85); opacity: .55; }
-.ice { width: 4.2vmax; height: 4.2vmax; left: 70vw; top: 22vh;
-  background: radial-gradient(circle at 32% 30%, #d6f1ff, #5f9fc4 50%, #0c2233 78%);
-  box-shadow: inset -1vmax -.7vmax 1.1vmax rgba(0,0,0,.8), 0 0 2vmax rgba(127,178,255,.18); opacity: .8; }
-
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10; backdrop-filter: blur(10px); background: rgba(3,5,11,.45); border-bottom: 1px solid var(--line); }
-nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
-.logo { font-weight: 600; letter-spacing: .02em; text-decoration: none; display: flex; align-items: center; gap: 10px; }
-.logo i { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #7fb2ff 45%, #1b3a7a); box-shadow: 0 0 12px rgba(127,178,255,.6); }
-nav .links { display: flex; gap: 26px; font-size: 14px; color: var(--ink-2); }
-nav .links a { text-decoration: none; } nav .links a:hover { color: var(--ink); }
-
-section { padding: 130px 0; position: relative; }
-.hero { min-height: 100vh; display: flex; align-items: center; padding-top: 90px; }
-h1 { font: 500 clamp(52px, 8.4vw, 112px)/.95 var(--sans); letter-spacing: -.035em; margin: 0 0 26px; }
-h1 em { letter-spacing: -.01em; color: #cfe0ff; }
-.sub { font-size: clamp(18px, 2vw, 22px); color: var(--ink-2); max-width: 640px; margin: 0 0 36px; font-weight: 300; }
-.cta { display: flex; gap: 12px; flex-wrap: wrap; }
-.btn { display: inline-flex; align-items: center; height: 46px; padding: 0 22px; border-radius: 999px; font-weight: 500; font-size: 15px; text-decoration: none; transition: transform .15s, background .15s; border: 0; cursor: pointer; font-family: var(--sans); }
-.btn.solid { background: var(--ink); color: var(--space); } .btn.solid:hover { transform: translateY(-1px); }
-.btn.line { border: 1px solid rgba(255,255,255,.22); background: transparent; color: var(--ink); } .btn.line:hover { background: rgba(255,255,255,.06); }
-
-h2 { font: 500 clamp(34px, 4.6vw, 58px)/1.04 var(--sans); letter-spacing: -.03em; margin: 0 0 18px; max-width: 860px; }
-.lead { color: var(--ink-2); font-size: 19px; font-weight: 300; max-width: 680px; margin: 0 0 48px; }
-.stage { position: relative; border-radius: 22px; border: 1px solid var(--line);
-  background: radial-gradient(120% 140% at 0% 0%, rgba(60,90,170,.10), transparent 55%), rgba(6,9,18,.66); backdrop-filter: blur(16px); overflow: hidden; }
-
-/* result gauge */
-.duel { display: grid; grid-template-columns: 1fr 1fr; }
-.side { padding: 28px 28px 26px; }
-.side + .side { border-left: 1px solid var(--line); }
-.side h3 { margin: 0 0 4px; font-size: 17px; font-weight: 500; }
-.side .auc { color: var(--ink-3); font-size: 13.5px; margin: 0 0 18px; }
-.side canvas { width: 100%; }
-.tally { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-.tally .v { font: 500 clamp(40px, 4.6vw, 58px)/1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-.tally .k { color: var(--ink-2); font-size: 14px; margin-top: 6px; }
-.v.real { color: #d8e8ff; } .v.false { color: var(--bad); }
-.verdict-line { padding: 22px 28px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-.verdict-line p { margin: 0; font-size: clamp(18px, 2vw, 22px); font-weight: 300; color: var(--ink-2); max-width: 760px; }
-.verdict-line b { color: var(--ink); font-weight: 500; }
-.key { display: flex; gap: 20px; color: var(--ink-3); font-size: 13px; padding: 0 28px 4px; }
-.key i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
-.key .kx { color: var(--bad); font-weight: 600; margin-right: 7px; font-size: 15px; }
-.key .kr { background: #d8e8ff; box-shadow: 0 0 8px #9cc3ff; } .key .kf { background: var(--bad); border-radius: 2px; }
-.replay { height: 36px; font-size: 13.5px; padding: 0 16px; }
-.footnote { color: var(--ink-3); font-size: 13.5px; margin-top: 16px; max-width: 900px; }
-.footnote a { color: var(--ink-2); }
-
-/* gates pipeline */
-.pipe canvas { width: 100%; height: 320px; }
-.gate-row { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); }
-.gate-row div { padding: 18px 16px 22px; text-align: center; border-left: 1px solid var(--line); }
-.gate-row div:first-child { border-left: 0; }
-.gate-row b { display: block; font-weight: 600; letter-spacing: .08em; font-size: 13.5px; color: #cfe0ff; }
-.gate-row em { display: block; font-size: 18px; margin: 2px 0 6px; }
-.gate-row span { color: var(--ink-3); font-size: 13.5px; line-height: 1.45; display: block; }
-
-/* proof */
-.proof { display: grid; grid-template-columns: 1fr; gap: 20px; }
-.panel { padding: 26px 26px 24px; }
-.panel h3 { font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin: 0 0 6px; line-height: 1.25; }
-.panel .cap { color: var(--ink-2); font-size: 15px; margin: 0 0 16px; }
-.panel canvas { width: 100%; }
-#transit { height: 250px; }
-#spectrum { height: 250px; }
-.stamps { margin-top: 18px; display: grid; gap: 2px; }
-.stamp { display: grid; grid-template-columns: 112px 1fr; align-items: baseline; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line);
-  opacity: 0; transform: translateX(-10px); transition: opacity .5s ease, transform .5s ease; }
-.stamp.on { opacity: 1; transform: none; }
-.stamp strong { font-weight: 600; letter-spacing: .08em; font-size: 13px; transform-origin: left center; }
-.stamp.on strong { animation: thump .5s cubic-bezier(.2,1.6,.4,1) both; }
-@keyframes thump { 0% { transform: scale(1.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
-.stamp span { color: var(--ink-2); font-size: 14.5px; }
-.s-good { color: var(--good); } .s-bad { color: var(--bad); } .s-mid { color: var(--blue); }
-.counter { font: 500 clamp(54px, 6vw, 76px)/1 var(--sans); letter-spacing: -.035em; margin: 18px 0 6px; font-variant-numeric: tabular-nums; }
-.counter small { font-size: .42em; color: var(--ink-3); letter-spacing: 0; }
-
-.honest { text-align: center; padding: 110px 0 140px; }
-.honest h2 { margin: 0 auto 18px; }
-.honest .lead { margin: 0 auto 36px; }
-.honest .cta { justify-content: center; }
-footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--ink-3); font-size: 13.5px; }
-footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-
-.reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s ease, transform .8s ease; }
-.reveal.in { opacity: 1; transform: none; }
-@media (max-width: 900px) {
-  .duel { grid-template-columns: 1fr; } .side + .side { border-left: 0; border-top: 1px solid var(--line); }
-  .proof { grid-template-columns: 1fr; }
-  .gate-row { grid-template-columns: repeat(5, 1fr); } .gate-row span { display: none; } .gate-row em { font-size: 14px; }
-  .gate-row div { padding: 14px 4px 16px; } .gate-row b { font-size: 11px; letter-spacing: .04em; }
-  nav .links { display: none; }
-  #world { right: -34vmax; top: 56vh; opacity: .45; } .ice { left: 78vw; }
-}
-@media (prefers-reduced-motion: reduce) { .reveal, .stamp { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
-</style>
-</head>
-<body>
-<canvas id="sky" aria-hidden="true"></canvas>
-<canvas id="world" class="planet" data-depth="0.18" aria-hidden="true"></canvas>
-<div class="planet rock" data-depth="0.45" aria-hidden="true"></div>
-<div class="planet ice" data-depth="0.3" aria-hidden="true"></div>
-
-<nav><div class="wrap">
-  <a class="logo" href="#"><i></i>Redshift</a>
-  <div class="links"><a href="explore.html">Explore</a><a href="#result">Result</a><a href="#referee">Referee</a><a href="#proof">Proof</a><a href="https://github.com/VolodymyrLinuxovich/exo-referee">GitHub</a></div>
-</div></nav>
-
-<header class="hero"><div class="wrap">
-  <h1>Self&#8209;improving AI <em>grades its own work.</em></h1>
-  <p class="sub">Redshift is the referee. Every claim an agent makes is checked against data it never saw before it ships. We ran it on molecules and on planets.</p>
-  <div class="cta"><a class="btn solid" href="#result">See the result</a><a class="btn line" href="explore.html">Explore the Kepler sky</a></div>
-</div></header>
-
-<section id="result"><div class="wrap">
-  <h2 class="reveal">Same agents. Same data. <em>One loop has a referee.</em></h2>
-  <p class="lead reveal">Claude agents spent an afternoon improving a planet finder on Kepler telescope data. Then each loop handed astronomers its best <span class="nreal">539</span> candidates from stars it had never seen. That is exactly how many real planets are hiding there.</p>
-  <div class="stage reveal" id="duel">
-    <div class="duel">
-      <div class="side"><h3>Without a referee</h3><p class="auc">Believed its model scored 0.9999. It had read the answer from the catalog.</p>
-        <canvas id="g-naive" aria-label="Follow-up picks of the loop without a referee"></canvas>
-        <div class="tally"><div><div class="v real" id="n-real">0</div><div class="k">real planets found</div></div><div><div class="v false" id="n-false">0</div><div class="k">false alarms followed up</div></div></div></div>
-      <div class="side"><h3>With Redshift</h3><p class="auc">Every change verified on stars no agent had seen.</p>
-        <canvas id="g-guard" aria-label="Follow-up picks of the loop with Redshift"></canvas>
-        <div class="tally"><div><div class="v real" id="g-real">0</div><div class="k">real planets found</div></div><div><div class="v false" id="g-false">0</div><div class="k">false alarms followed up</div></div></div></div>
-    </div>
-    <div class="key"><span><i class="kr"></i>real planet</span><span><b class="kx">&times;</b>false positive</span></div>
-    <div class="verdict-line"><p id="punch">&nbsp;</p><button class="btn line replay" id="replay">Run it again</button></div>
-  </div>
-  <p class="footnote reveal">Each model's top picks among 1,505 Kepler Objects of Interest around 1,328 held&#8209;out stars, scored with the columns that encode the answer removed, the way a new candidate arrives. Data from the NASA Exoplanet Archive. <a href="compare.html">Every claim, charted</a>.</p>
-</div></section>
-
-<section id="referee"><div class="wrap">
-  <h2 class="reveal">Every claim runs the gauntlet. <em>Most don't make it.</em></h2>
-  <p class="lead reveal">Agents never see a label and their code runs sealed. Redshift is the only process that reads the answers. The first gate a claim fails is its verdict.</p>
-  <div class="stage pipe reveal">
-    <canvas id="pipe" aria-label="Claims flowing through five gates"></canvas>
-    <div class="gate-row">
-      <div><b>CRASH</b><em>Did it run?</em><span>Sealed sandbox, must finish</span></div>
-      <div><b>NOISE</b><em>More than luck?</em><span>Three seeds, gain beyond seed noise</span></div>
-      <div><b>LEAK</b><em>Learned at all?</em><span>Still wins on shuffled labels? Caught</span></div>
-      <div><b>PRIOR</b><em>Reads the data?</em><span>Still wins with the light curve blanked? Caught</span></div>
-      <div><b>OVERFIT</b><em>Holds out of sight?</em><span>Must hold on stars no agent has seen</span></div>
-    </div>
-  </div>
-</div></section>
-
-<section id="proof"><div class="wrap">
-  <h2 class="reveal">Two sciences. <em>Real traps in both.</em></h2>
-  <p class="lead reveal">We did not plant the hard cases. The public datasets ship them.</p>
-  <div class="proof">
-    <div class="stage panel reveal">
-      <h3>An agent rediscovered how astronomers vet planets.</h3>
-      <p class="cap">Both dips look the same. When a background binary is to blame, the light's center shifts during the dip.</p>
-      <canvas id="transit" aria-label="A planet transit next to a background binary that shifts the light centroid"></canvas>
-      <div class="stamps" id="stamps">
-        <div class="stamp"><strong class="s-good">PROMOTED</strong><span>Centroid shift. +0.016 AUC on hidden stars</span></div>
-        <div class="stamp"><strong class="s-good">PROMOTED</strong><span>Transit density must match the star</span></div>
-        <div class="stamp"><strong class="s-bad">LEAK</strong><span>Catalog name. 0.999 on shuffled labels</span></div>
-        <div class="stamp"><strong class="s-bad">PRIOR</strong><span>Archive vetting score. 0.999 with no light curve</span></div>
-        <div class="stamp"><strong class="s-mid">OVERFIT</strong><span>Stacked boosting. Gone on hidden stars</span></div>
-      </div>
-    </div>
-    <div class="stage panel reveal">
-      <h3>Molecules from mass spectra.</h3>
-      <p class="cap">MassSpecGym, DeepMind award at the SF AI Research Hackathon.</p>
-      <canvas id="spectrum" aria-label="A mass spectrum drawing in"></canvas>
-      <div class="counter" id="count">0 <small>of 4,000</small></div>
-      <p class="cap">validation spectra list the true molecule first. An agent that notices scores a perfect 1.00 and learns nothing. Our referee reshuffles candidates and keeps labels sealed.</p>
-    </div>
-  </div>
-</div></section>
-
-<section class="honest"><div class="wrap">
-  <h2 class="reveal">We check the checker <em>too.</em></h2>
-  <p class="lead reveal">Today we found two false&#8209;positive bugs in our own gates and fixed them. We re&#8209;judged three claims in the open, and nothing was erased. Then a code review found more: tied scores, a sandbox with gaps, an interval that was too narrow. We fixed them and replayed every verdict. All three promotions held.</p>
-  <div class="cta reveal"><a class="btn solid" href="https://github.com/VolodymyrLinuxovich/exo-referee">Read the code</a><a class="btn line" href="compare.html">See every verdict</a></div>
-</div></section>
-
-<footer><div class="wrap">
-  <span>Redshift, by Volodymyr Borysenko</span>
-  <span>Data from the NASA Exoplanet Archive and MassSpecGym. Not affiliated with NASA.</span>
-</div></footer>
-
-<script>
-"use strict";
-const STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const DPR = Math.min(devicePixelRatio || 1, 2);
-function fit(c) { const r = c.getBoundingClientRect(); c.width = r.width * DPR; c.height = r.height * DPR; const x = c.getContext("2d"); x.setTransform(DPR, 0, 0, DPR, 0, 0); return { x, w: r.width, h: r.height }; }
-function whenSeen(el, fn, th) { const o = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { fn(); o.disconnect(); } }), { threshold: th || .35 }); o.observe(el); }
-const ease = t => 1 - Math.pow(1 - t, 3);
-const lerp = (a, b, t) => a + (b - a) * t;
-
-/* ---------- sky ---------- */
-(function () {
-  const c = document.getElementById("sky"), x = c.getContext("2d");
-  let W, H, stars = [];
-  function size() {
-    W = c.width = innerWidth * DPR; H = c.height = innerHeight * DPR;
-    c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px";
-    stars = Array.from({ length: Math.round(innerWidth * innerHeight / 2600) }, () => ({ x: Math.random() * W, y: Math.random() * H * 1.6,
-      r: (Math.random() ** 3 * 1.6 + .25) * DPR, a: Math.random() * .7 + .25, t: Math.random() * 6.28, s: Math.random() * .02 + .004,
-      d: Math.random() * .5 + .05, hue: Math.random() < .12 ? "200,220,255" : Math.random() < .06 ? "255,220,190" : "255,255,255" }));
-  }
-  function draw() {
-    x.clearRect(0, 0, W, H);
-    const g = x.createRadialGradient(W * .15, H * .1, 0, W * .15, H * .1, W * .7);
-    g.addColorStop(0, "rgba(40,60,120,.18)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, W, H);
-    const sy = scrollY * DPR;
-    for (const s of stars) {
-      s.t += s.s;
-      const y = ((s.y - sy * s.d) % (H * 1.6) + H * 1.6) % (H * 1.6); if (y > H) continue;
-      x.globalAlpha = s.a * (.65 + .35 * Math.sin(s.t)); x.fillStyle = `rgb(${s.hue})`;
-      x.beginPath(); x.arc(s.x, y, s.r, 0, 6.283); x.fill();
-    }
-    x.globalAlpha = 1; if (!STILL) requestAnimationFrame(draw);
-  }
-  addEventListener("resize", size); size(); draw();
-  if (STILL) addEventListener("scroll", draw, { passive: true });
-  const ps = [...document.querySelectorAll(".planet")];
-  addEventListener("scroll", () => ps.forEach(p => p.style.transform = `translateY(${-scrollY * p.dataset.depth}px)`), { passive: true });
-})();
-
-/* ---------- the world: a rotating ice giant, lit from the upper left ---------- */
-(function () {
-  const c = document.getElementById("world");
-  const S = Math.max(240, Math.min(620, Math.round(c.getBoundingClientRect().width * Math.min(DPR, 1.4))));
-  c.width = c.height = S;
-  const x = c.getContext("2d");
-  const TW = 512, TH = 256, tex = new Float32Array(TW * TH * 3);
-  // seeded value noise, periodic in longitude so the texture wraps
-  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const H = new Float32Array(256 * 256).map(rnd);
-  const sm = t => t * t * (3 - 2 * t);
-  function n2(px, py, per) {
-    const xi = Math.floor(px), yi = Math.floor(py), xf = px - xi, yf = py - yi;
-    const a = (i, j) => H[((((i % per) + per) % per) & 255) * 256 + (j & 255)];
-    const u = sm(xf), v = sm(yf);
-    return (a(xi, yi) * (1 - u) + a(xi + 1, yi) * u) * (1 - v) + (a(xi, yi + 1) * (1 - u) + a(xi + 1, yi + 1) * u) * v;
-  }
-  function fbm(px, py) { let s = 0, a = .5, per = 8; for (let o = 0; o < 4; o++) { s += a * n2(px, py, per); px *= 2; py *= 2; per *= 2; a *= .5; } return s; }
-  const PAL = [[10, 34, 64], [24, 78, 124], [52, 122, 172], [104, 172, 210], [158, 212, 234], [46, 104, 152]];
-  function pal(t) { t = Math.max(0, Math.min(.9999, t)) * (PAL.length - 1); const i = Math.floor(t), f = t - i, A = PAL[i], B = PAL[i + 1]; return [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f]; }
-  for (let v = 0; v < TH; v++) {
-    const lat = (v / TH - .5) * Math.PI;
-    for (let u = 0; u < TW; u++) {
-      const px = u / TW * 8, py = v / TH * 4;
-      const warp = fbm(px * 1.0, py * 3.2) * 2.4;
-      let t = .5 + .5 * Math.sin(lat * 9 + warp * 1.8) * .5 + (fbm(px * 1.5, py * 4) - .5) * .32;
-      const dx = Math.min(Math.abs(u - TW * .3), TW - Math.abs(u - TW * .3)) / (TW * .05), dy = (v - TH * .66) / (TH * .035);
-      const storm = Math.exp(-(dx * dx + dy * dy));
-      t = t * (1 - storm) + (.92 - .15 * Math.sin(dx * 3)) * storm;
-      const col = pal(t), k = (v * TW + u) * 3;
-      tex[k] = col[0]; tex[k + 1] = col[1]; tex[k + 2] = col[2];
-    }
-  }
-  // per-pixel sphere lookup: texture coords and lighting, computed once
-  const R = S * .43, cx = S / 2, cy = S / 2, tilt = -.42, ct = Math.cos(tilt), st = Math.sin(tilt);
-  const Lx = -.62, Ly = -.48, Lz = .62, Ln = Math.hypot(Lx, Ly, Lz);
-  const idx = [], uu = [], vv = [], lit = [], edge = [];
-  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
-    const nx = (i + .5 - cx) / R, ny = (j + .5 - cy) / R, r2 = nx * nx + ny * ny;
-    if (r2 >= 1) continue;
-    const nz = Math.sqrt(1 - r2);
-    const rx = nx * ct - ny * st, ry = nx * st + ny * ct;            // axial tilt
-    const lat = Math.asin(ry), lon = Math.atan2(rx, nz);
-    const d = (nx * Lx + ny * Ly + nz * Lz) / Ln;
-    const diffuse = Math.max(0, d), term = sm(Math.max(0, Math.min(1, (d + .18) / .5)));
-    const limb = .55 + .45 * nz;
-    idx.push((j * S + i) * 4); uu.push((lon / (2 * Math.PI) + .5) * TW); vv.push((lat / Math.PI + .5) * (TH - 1));
-    lit.push(Math.min(1.25, (.035 + diffuse * 1.05) * term * limb + .02));
-    edge.push(Math.max(0, Math.min(1, (1 - Math.sqrt(r2)) * R / 1.4)) * 255);
-  }
-  const img = x.createImageData(S, S), D = img.data, N = idx.length;
-  let off = 0, last = 0;
-  function draw(now) {
-    if (now - last > 50 || !last) {
-      last = now; off = (off + .35) % TW;
-      for (let p = 0; p < N; p++) {
-        const u = Math.floor(uu[p] + off) % TW, k = (Math.floor(vv[p]) * TW + u) * 3, L = lit[p], q = idx[p];
-        D[q] = tex[k] * L; D[q + 1] = tex[k + 1] * L; D[q + 2] = tex[k + 2] * L; D[q + 3] = edge[p];
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redshift, the referee for self-improving AI</title>
+    <meta
+      name="description"
+      content="Agents that improve themselves grade their own work. Redshift checks every claim before it ships."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --space: #03050b;
+        --ink: #eef1f6;
+        --ink-2: #a9b1c2;
+        --ink-3: #6d7588;
+        --line: rgba(255, 255, 255, 0.09);
+        --glass: rgba(10, 14, 26, 0.6);
+        --good: #5fd39a;
+        --bad: #ff7a59;
+        --blue: #9cc3ff;
+        --gold: #ffc56b;
+        --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
       }
-      x.clearRect(0, 0, S, S); x.putImageData(img, 0, 0);
-      // atmosphere: a thin bright rim on the lit side and a soft halo
-      x.globalCompositeOperation = "lighter";
-      const g = x.createRadialGradient(cx, cy, R * .97, cx, cy, R * 1.12);
-      g.addColorStop(0, "rgba(130,205,255,.42)"); g.addColorStop(.25, "rgba(110,190,255,.16)"); g.addColorStop(1, "rgba(110,190,255,0)");
-      x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R * 1.12, 0, 6.283); x.arc(cx, cy, R * .97, 0, 6.283, true); x.fill();
-      const sh = x.createLinearGradient(cx - R, cy - R, cx + R * .9, cy + R * .9);         // halo fades on the night side
-      sh.addColorStop(0, "rgba(0,0,0,0)"); sh.addColorStop(.55, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(3,5,11,1)");
-      x.globalCompositeOperation = "destination-out"; x.fillStyle = sh; x.beginPath(); x.arc(cx, cy, R * 1.12, 0, 6.283); x.arc(cx, cy, R * .985, 0, 6.283, true); x.fill();
-      x.globalCompositeOperation = "source-over";
-    }
-    if (!STILL) requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-})();
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--space);
+        color: var(--ink);
+        font: 400 16px/1.6 var(--sans);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      a {
+        color: inherit;
+      }
+      em {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 400;
+      }
+      canvas,
+      svg {
+        display: block;
+      }
 
-/* ---------- follow-up budget: each loop's best picks, real or false ---------- */
-(function () {
-  const COLS = 28;
-  let F = null;
-  const cv = { naive: document.getElementById("g-naive"), guarded: document.getElementById("g-guard") };
-  const num = { naive: ["n-real", "n-false"], guarded: ["g-real", "g-false"] };
-  function layout(c, n) { const w = c.getBoundingClientRect().width, cell = w / COLS, rows = Math.ceil(n / COLS); c.style.height = rows * cell + "px"; return fit(c); }
-  const cells = k => F.loops[k].picks;   // the model's actual ranked picks, 1 = real planet
-  function draw(c, g, picks, upto, now) {
-    const { x, w } = g, cell = w / COLS, r = cell * .3;
-    x.clearRect(0, 0, g.w, g.h);
-    for (let i = 0; i < picks.length; i++) {
-      const cx = (i % COLS + .5) * cell, cy = (Math.floor(i / COLS) + .5) * cell;
-      if (i >= upto) { x.fillStyle = "rgba(255,255,255,.05)"; x.beginPath(); x.arc(cx, cy, r * .55, 0, 6.283); x.fill(); continue; }
-      const fresh = Math.max(0, 1 - (upto - i) / 40);
-      if (picks[i]) {
-        x.shadowColor = "#9cc3ff"; x.shadowBlur = 6 + fresh * 10;
-        const gr = x.createRadialGradient(cx - r * .35, cy - r * .35, 0, cx, cy, r);
-        gr.addColorStop(0, "#ffffff"); gr.addColorStop(.6, "#b9d4ff"); gr.addColorStop(1, "#5d86c7");
-        x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, r * (1 + fresh * .5), 0, 6.283); x.fill(); x.shadowBlur = 0;
-      } else {
-        const a = r * (.9 + fresh * .6);
-        x.strokeStyle = "#ff7a59"; x.lineWidth = Math.max(1.6, cell * .1); x.shadowColor = "#ff7a59"; x.shadowBlur = 8 + fresh * 12;
-        x.beginPath(); x.moveTo(cx - a, cy - a); x.lineTo(cx + a, cy + a); x.moveTo(cx + a, cy - a); x.lineTo(cx - a, cy + a); x.stroke(); x.shadowBlur = 0;
+      /* sky */
+      #sky {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -3;
       }
-    }
-  }
-  let run = 0;
-  function play() {
-    const id = ++run, P = { naive: cells("naive"), guarded: cells("guarded") }, G = {};
-    for (const k in cv) G[k] = layout(cv[k], F.real);
-    document.getElementById("punch").innerHTML = "&nbsp;";
-    const T = 4200, t0 = performance.now();
-    (function f(now) {
-      if (id !== run) return;
-      const t = Math.min(1, (now - t0) / T), upto = Math.round(ease(t) * F.real);
-      for (const k in cv) {
-        draw(cv[k], G[k], P[k], upto, now);
-        const seen = P[k].slice(0, upto), real = seen.reduce((a, b) => a + b, 0);
-        document.getElementById(num[k][0]).textContent = real; document.getElementById(num[k][1]).textContent = upto - real;
+      .planet {
+        position: fixed;
+        border-radius: 50%;
+        z-index: -2;
+        pointer-events: none;
+        will-change: transform;
       }
-      if (t < 1) requestAnimationFrame(f);
-      else {
-        const n = F.loops.naive[String(F.real)], g = F.loops.guarded[String(F.real)];
-        document.getElementById("punch").innerHTML = `Same telescope time. Redshift finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>.${F.loops.start && n.real < F.loops.start[String(F.real)].real ? " The unchecked loop ended worse than where it started." : ""}`;
+      #world {
+        position: fixed;
+        z-index: -2;
+        pointer-events: none;
+        width: 54vmax;
+        height: 54vmax;
+        right: -17vmax;
+        top: 26vh;
+        opacity: 0.82;
+        will-change: transform;
       }
-    })(t0);
-  }
-  document.getElementById("replay").addEventListener("click", () => F && play());
-  addEventListener("resize", () => { if (F) play(); });
-  fetch("followup.json").then(r => r.json()).then(d => { F = d; document.querySelectorAll(".nreal").forEach(e => e.textContent = d.real); whenSeen(document.getElementById("duel"), play, .3); }).catch(() => {});
-})();
+      .rock {
+        width: 9vmax;
+        height: 9vmax;
+        left: 4vw;
+        top: 118vh;
+        background: radial-gradient(circle at 32% 30%, #b9c7d8, #5a6b83 45%, #141b27 75%);
+        box-shadow: inset -2.2vmax -1.4vmax 2.4vmax rgba(0, 0, 0, 0.85);
+        opacity: 0.55;
+      }
+      .ice {
+        width: 4.2vmax;
+        height: 4.2vmax;
+        left: 70vw;
+        top: 22vh;
+        background: radial-gradient(circle at 32% 30%, #d6f1ff, #5f9fc4 50%, #0c2233 78%);
+        box-shadow:
+          inset -1vmax -0.7vmax 1.1vmax rgba(0, 0, 0, 0.8),
+          0 0 2vmax rgba(127, 178, 255, 0.18);
+        opacity: 0.8;
+      }
 
-/* ---------- gates pipeline ---------- */
-(function () {
-  const c = document.getElementById("pipe"); let g = fit(c);
-  addEventListener("resize", () => g = fit(c));
-  const CLAIMS = [
-    { t: "catalog name", fate: 2, v: "LEAK" }, { t: "320 trees", fate: 1, v: "NOISE" },
-    { t: "centroid shift", fate: 5, v: "PROMOTED" }, { t: "vetting score", fate: 3, v: "PRIOR" },
-    { t: "stacked boosting", fate: 4, v: "OVERFIT" }, { t: "broken import", fate: 0, v: "CRASH" },
-    { t: "stellar density", fate: 5, v: "PROMOTED" }, { t: "lucky seed", fate: 1, v: "NOISE" },
-  ];
-  const gx = i => g.w * (i + .5) / 5;
-  let orbs = [], sparks = [], flashes = [0, 0, 0, 0, 0], labels = [], k = 0, last = 0, promoted = 0, running = false;
-  function spawn() { const d = CLAIMS[k++ % CLAIMS.length]; orbs.push({ ...d, x: -20, y: g.h * .52 + (Math.random() - .5) * 26, sp: g.w / 300, dead: false, done: false }); }
-  function frame(now) {
-    const { x, w, h } = g;
-    if (!last) last = now; const dt = Math.min(48, now - last); last = now;
-    if (!orbs.length || orbs[orbs.length - 1].x > w * .2) spawn();
-    x.clearRect(0, 0, w, h);
-    // gates
-    for (let i = 0; i < 5; i++) {
-      const cx = gx(i), f = flashes[i]; flashes[i] = Math.max(0, f - dt / 600);
-      const col = f > 0 ? (flashes[i + 5] === "bad" ? `rgba(255,122,89,${.25 + f * .75})` : `rgba(95,211,154,${.2 + f * .6})`) : "rgba(156,195,255,.28)";
-      const ry = h * .33, sx = Math.min(.32, (w / 5) * .3 / ry);
-      x.save(); x.translate(cx, h * .52); x.scale(sx, 1);
-      x.lineWidth = 3 / sx; x.strokeStyle = col; x.shadowColor = col; x.shadowBlur = 18 + f * 30;
-      x.beginPath(); x.arc(0, 0, ry, 0, 6.283); x.stroke(); x.restore();
-    }
-    // orbs
-    for (const o of orbs) {
-      if (o.dead) continue;
-      const nextGate = [0, 1, 2, 3, 4].find(i => gx(i) > o.x - 1);
-      if (!o.done) {
-        o.x += o.sp * dt / 4;
-        if (o.fate < 5 && o.x >= gx(o.fate)) {
-          o.dead = true; flashes[o.fate] = 1; flashes[o.fate + 5] = "bad";
-          for (let s = 0; s < 26; s++) { const a = Math.random() * 6.283, v = Math.random() * 2.4 + .6; sparks.push({ x: gx(o.fate), y: o.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, l: 1 }); }
-          labels.push({ x: gx(o.fate), y: h * .52 - h * .33 - 12, t: o.v, c: "#ff7a59", l: 1 });
-          continue;
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 28px;
+      }
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        backdrop-filter: blur(10px);
+        background: rgba(3, 5, 11, 0.45);
+        border-bottom: 1px solid var(--line);
+      }
+      nav .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 60px;
+      }
+      .logo {
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo i {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #fff, #7fb2ff 45%, #1b3a7a);
+        box-shadow: 0 0 12px rgba(127, 178, 255, 0.6);
+      }
+      nav .links {
+        display: flex;
+        gap: 26px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      nav .links a {
+        text-decoration: none;
+      }
+      nav .links a:hover {
+        color: var(--ink);
+      }
+
+      section {
+        padding: 130px 0;
+        position: relative;
+      }
+      .hero {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding-top: 90px;
+      }
+      h1 {
+        font: 500 clamp(52px, 8.4vw, 112px)/0.95 var(--sans);
+        letter-spacing: -0.035em;
+        margin: 0 0 26px;
+      }
+      h1 em {
+        letter-spacing: -0.01em;
+        color: #cfe0ff;
+      }
+      .sub {
+        font-size: clamp(18px, 2vw, 22px);
+        color: var(--ink-2);
+        max-width: 640px;
+        margin: 0 0 36px;
+        font-weight: 300;
+      }
+      .cta {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        height: 46px;
+        padding: 0 22px;
+        border-radius: 999px;
+        font-weight: 500;
+        font-size: 15px;
+        text-decoration: none;
+        transition:
+          transform 0.15s,
+          background 0.15s;
+        border: 0;
+        cursor: pointer;
+        font-family: var(--sans);
+      }
+      .btn.solid {
+        background: var(--ink);
+        color: var(--space);
+      }
+      .btn.solid:hover {
+        transform: translateY(-1px);
+      }
+      .btn.line {
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: transparent;
+        color: var(--ink);
+      }
+      .btn.line:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      h2 {
+        font: 500 clamp(34px, 4.6vw, 58px)/1.04 var(--sans);
+        letter-spacing: -0.03em;
+        margin: 0 0 18px;
+        max-width: 860px;
+      }
+      .lead {
+        color: var(--ink-2);
+        font-size: 19px;
+        font-weight: 300;
+        max-width: 680px;
+        margin: 0 0 48px;
+      }
+      .stage {
+        position: relative;
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(120% 140% at 0% 0%, rgba(60, 90, 170, 0.1), transparent 55%), rgba(6, 9, 18, 0.66);
+        backdrop-filter: blur(16px);
+        overflow: hidden;
+      }
+
+      /* result gauge */
+      .duel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .side {
+        padding: 28px 28px 26px;
+      }
+      .side + .side {
+        border-left: 1px solid var(--line);
+      }
+      .side h3 {
+        margin: 0 0 4px;
+        font-size: 17px;
+        font-weight: 500;
+      }
+      .side .auc {
+        color: var(--ink-3);
+        font-size: 13.5px;
+        margin: 0 0 18px;
+      }
+      .side canvas {
+        width: 100%;
+      }
+      .tally {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 20px;
+      }
+      .tally .v {
+        font: 500 clamp(40px, 4.6vw, 58px)/1 var(--sans);
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+      }
+      .tally .k {
+        color: var(--ink-2);
+        font-size: 14px;
+        margin-top: 6px;
+      }
+      .v.real {
+        color: #d8e8ff;
+      }
+      .v.false {
+        color: var(--bad);
+      }
+      .verdict-line {
+        padding: 22px 28px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .verdict-line p {
+        margin: 0;
+        font-size: clamp(18px, 2vw, 22px);
+        font-weight: 300;
+        color: var(--ink-2);
+        max-width: 760px;
+      }
+      .verdict-line b {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .key {
+        display: flex;
+        gap: 20px;
+        color: var(--ink-3);
+        font-size: 13px;
+        padding: 0 28px 4px;
+      }
+      .key i {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 7px;
+        vertical-align: 0;
+      }
+      .key .kx {
+        color: var(--bad);
+        font-weight: 600;
+        margin-right: 7px;
+        font-size: 15px;
+      }
+      .key .kr {
+        background: #d8e8ff;
+        box-shadow: 0 0 8px #9cc3ff;
+      }
+      .key .kf {
+        background: var(--bad);
+        border-radius: 2px;
+      }
+      .replay {
+        height: 36px;
+        font-size: 13.5px;
+        padding: 0 16px;
+      }
+      .footnote {
+        color: var(--ink-3);
+        font-size: 13.5px;
+        margin-top: 16px;
+        max-width: 900px;
+      }
+      .footnote a {
+        color: var(--ink-2);
+      }
+
+      /* gates pipeline */
+      .pipe canvas {
+        width: 100%;
+        height: 320px;
+      }
+      .gate-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border-top: 1px solid var(--line);
+      }
+      .gate-row div {
+        padding: 18px 16px 22px;
+        text-align: center;
+        border-left: 1px solid var(--line);
+      }
+      .gate-row div:first-child {
+        border-left: 0;
+      }
+      .gate-row b {
+        display: block;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        font-size: 13.5px;
+        color: #cfe0ff;
+      }
+      .gate-row em {
+        display: block;
+        font-size: 18px;
+        margin: 2px 0 6px;
+      }
+      .gate-row span {
+        color: var(--ink-3);
+        font-size: 13.5px;
+        line-height: 1.45;
+        display: block;
+      }
+
+      /* proof */
+      .proof {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      .panel {
+        padding: 26px 26px 24px;
+      }
+      .panel h3 {
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px;
+        line-height: 1.25;
+      }
+      .panel .cap {
+        color: var(--ink-2);
+        font-size: 15px;
+        margin: 0 0 16px;
+      }
+      .panel canvas {
+        width: 100%;
+      }
+      #transit {
+        height: 250px;
+      }
+      #spectrum {
+        height: 250px;
+      }
+      .stamps {
+        margin-top: 18px;
+        display: grid;
+        gap: 2px;
+      }
+      .stamp {
+        display: grid;
+        grid-template-columns: 112px 1fr;
+        align-items: baseline;
+        gap: 14px;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+        opacity: 0;
+        transform: translateX(-10px);
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+      }
+      .stamp.on {
+        opacity: 1;
+        transform: none;
+      }
+      .stamp strong {
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        font-size: 13px;
+        transform-origin: left center;
+      }
+      .stamp.on strong {
+        animation: thump 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+      }
+      @keyframes thump {
+        0% {
+          transform: scale(1.9);
+          opacity: 0;
         }
-        if (nextGate !== undefined && Math.abs(o.x - gx(nextGate)) < o.sp * dt / 4 + .5 && nextGate < o.fate) { flashes[nextGate] = .7; flashes[nextGate + 5] = "good"; }
-        if (o.fate === 5 && o.x > w - 46) { o.done = true; o.t0 = now; promoted++; labels.push({ x: w - 50, y: o.y - 20, t: "PROMOTED", c: "#5fd39a", l: 1, low: true }); }
+        100% {
+          transform: none;
+          opacity: 1;
+        }
       }
-      const good = o.fate === 5 && o.x > gx(4);
-      const pulse = o.done ? 1 + .25 * Math.sin((now - o.t0) / 120) : 1;
-      if (o.done && now - o.t0 > 1400) { o.dead = true; continue; }
-      x.shadowColor = good ? "#5fd39a" : "#9cc3ff"; x.shadowBlur = 22;
-      x.fillStyle = good ? "#5fd39a" : "#eef1f6";
-      x.beginPath(); x.arc(o.x, o.y, 6.5 * pulse, 0, 6.283); x.fill(); x.shadowBlur = 0;
-      x.globalAlpha = .9; x.fillStyle = "#a9b1c2"; x.font = `500 ${w < 600 ? 10.5 : 12.5}px Geist, sans-serif`; x.textAlign = "center";
-      const tw = x.measureText(o.t).width / 2; x.fillText(o.t, Math.max(tw + 4, Math.min(w - tw - 4, o.x)), o.y + 26); x.globalAlpha = 1;
-      // comet tail
-      const tail = x.createLinearGradient(o.x - 60, 0, o.x, 0); tail.addColorStop(0, "rgba(156,195,255,0)"); tail.addColorStop(1, good ? "rgba(95,211,154,.5)" : "rgba(156,195,255,.45)");
-      x.strokeStyle = tail; x.lineWidth = 3; x.beginPath(); x.moveTo(o.x - 60, o.y); x.lineTo(o.x - 7, o.y); x.stroke();
-    }
-    orbs = orbs.filter(o => !o.dead || o.x < 0);
-    for (const s of sparks) { s.x += s.vx * dt / 8; s.y += s.vy * dt / 8; s.l -= dt / 700; x.globalAlpha = Math.max(0, s.l); x.fillStyle = "#ff7a59"; x.fillRect(s.x, s.y, 2.4, 2.4); }
-    sparks = sparks.filter(s => s.l > 0); x.globalAlpha = 1;
-    for (const l of labels) { l.l -= dt / 1500; l.y = l.low ? l.y - dt / 400 : Math.max(16, l.y - dt / 160); x.font = "600 13px Geist, sans-serif"; const lw = x.measureText(l.t).width / 2; l.x = Math.max(lw + 4, Math.min(w - lw - 4, l.x)); x.globalAlpha = Math.max(0, Math.min(1, l.l * 1.6)); x.fillStyle = l.c; x.font = "600 13px Geist, sans-serif"; x.textAlign = "center"; x.fillText(l.t, l.x, l.y); }
-    labels = labels.filter(l => l.l > 0); x.globalAlpha = 1;
-    x.textAlign = "right"; x.fillStyle = "#6d7588"; x.font = "400 12.5px Geist, sans-serif"; x.fillText(`promoted ${promoted}`, w - 16, h - 14);
-    requestAnimationFrame(frame);
-  }
-  whenSeen(c, () => { if (!running && !STILL) { running = true; requestAnimationFrame(frame); } }, .2);
-})();
+      .stamp span {
+        color: var(--ink-2);
+        font-size: 14.5px;
+      }
+      .s-good {
+        color: var(--good);
+      }
+      .s-bad {
+        color: var(--bad);
+      }
+      .s-mid {
+        color: var(--blue);
+      }
+      .counter {
+        font: 500 clamp(54px, 6vw, 76px)/1 var(--sans);
+        letter-spacing: -0.035em;
+        margin: 18px 0 6px;
+        font-variant-numeric: tabular-nums;
+      }
+      .counter small {
+        font-size: 0.42em;
+        color: var(--ink-3);
+        letter-spacing: 0;
+      }
 
-/* ---------- transit vs background binary ---------- */
-(function () {
-  const c = document.getElementById("transit"); let g = fit(c);
-  addEventListener("resize", () => g = fit(c));
-  const P = 5200;
-  function scene(x, ox, w, h, t, blend) {
-    const cx = ox + w / 2, cy = 70, R = 42;
-    // star
-    const sg = x.createRadialGradient(cx, cy, 0, cx, cy, R * 2.2);
-    sg.addColorStop(0, "rgba(255,236,200,1)"); sg.addColorStop(.42, "rgba(255,205,140,.95)"); sg.addColorStop(.46, "rgba(255,170,90,.35)"); sg.addColorStop(1, "rgba(255,150,80,0)");
-    const ph = (t % P) / P;                          // 0..1 orbit phase
-    const tx = lerp(cx - R * 1.9, cx + R * 1.9, ph);  // transiting body x
-    const inT = Math.abs(tx - cx) < R;
-    const depth = inT ? (blend ? Math.max(0, 1 - Math.abs(tx - cx) / R) * .55 : .30) : 0;
-    x.globalAlpha = 1 - depth * .6; x.fillStyle = sg; x.beginPath(); x.arc(cx, cy, R * 2.2, 0, 6.283); x.fill(); x.globalAlpha = 1;
-    if (blend) {  // faint background pair
-      const bx = cx + 30, by = cy - 26;
-      x.fillStyle = "rgba(255,190,150,.55)"; x.beginPath(); x.arc(bx + Math.cos(t / 400) * 3, by, 3.2, 0, 6.283); x.fill();
-      x.fillStyle = "rgba(255,190,150,.35)"; x.beginPath(); x.arc(bx - Math.cos(t / 400) * 3, by + 1, 2.4, 0, 6.283); x.fill();
-    } else if (Math.abs(tx - cx) < R * 1.8) {
-      x.fillStyle = "#05070d"; x.beginPath(); x.arc(tx, cy + 6, 8, 0, 6.283); x.fill();
-    }
-    // centroid crosshair
-    const shift = blend && inT ? -depth * 22 : 0;
-    const col = shift ? "#ff7a59" : "#9cc3ff";
-    x.strokeStyle = col; x.lineWidth = 1.5; x.shadowColor = col; x.shadowBlur = shift ? 10 : 0;
-    const hx = cx + shift, hy = cy - shift * .6;
-    x.beginPath(); x.moveTo(hx - 10, hy); x.lineTo(hx - 4, hy); x.moveTo(hx + 4, hy); x.lineTo(hx + 10, hy);
-    x.moveTo(hx, hy - 10); x.lineTo(hx, hy - 4); x.moveTo(hx, hy + 4); x.lineTo(hx, hy + 10); x.stroke(); x.shadowBlur = 0;
-    // light curve
-    const top = 156, bh = 56, l0 = ox + 14, l1 = ox + w - 14;
-    x.strokeStyle = "rgba(255,255,255,.08)"; x.beginPath(); x.moveTo(l0, top + bh); x.lineTo(l1, top + bh); x.stroke();
-    x.strokeStyle = blend ? "#ff7a59" : "#5fd39a"; x.lineWidth = 2; x.beginPath();
-    for (let i = 0; i <= 120 * ph; i++) {
-      const p = i / 120, bx = lerp(cx - R * 1.9, cx + R * 1.9, p), d = Math.abs(bx - cx);
-      const dd = d < R ? (blend ? (1 - d / R) * .55 : (d > R * .8 ? .3 * (R - d) / (R * .2) : .3)) : 0;
-      const px = lerp(l0, l1, p), py = top + dd * bh * 1.5 + Math.sin(i * 1.7) * 1.2;
-      i ? x.lineTo(px, py) : x.moveTo(px, py);
-    }
-    x.stroke();
-    x.fillStyle = "#a9b1c2"; x.font = "500 13px Geist, sans-serif"; x.textAlign = "center";
-    x.fillText(blend ? "Background binary" : "Real planet", cx, h - 8);
-    x.fillStyle = shift ? "#ff7a59" : "#6d7588"; x.font = "400 12px Geist, sans-serif";
-    x.fillText(blend ? (shift ? "light center moves" : "watch the crosshair") : "light center stays put", cx, 140);
-  }
-  function frame(t) {
-    const { x, w, h } = g; x.clearRect(0, 0, w, h);
-    scene(x, 0, w / 2, h, t, false); scene(x, w / 2, w / 2, h, t + 0, true);
-    x.strokeStyle = "rgba(255,255,255,.07)"; x.beginPath(); x.moveTo(w / 2, 10); x.lineTo(w / 2, h - 24); x.stroke();
-    if (!STILL) requestAnimationFrame(frame);
-  }
-  whenSeen(c, () => requestAnimationFrame(frame), .2);
-  const st = [...document.querySelectorAll(".stamp")];
-  whenSeen(document.getElementById("stamps"), () => st.forEach((s, i) => setTimeout(() => s.classList.add("on"), 250 + i * 420)), .3);
-})();
+      .honest {
+        text-align: center;
+        padding: 110px 0 140px;
+      }
+      .honest h2 {
+        margin: 0 auto 18px;
+      }
+      .honest .lead {
+        margin: 0 auto 36px;
+      }
+      .honest .cta {
+        justify-content: center;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 28px 0 40px;
+        color: var(--ink-3);
+        font-size: 13.5px;
+      }
+      footer .wrap {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
 
-/* ---------- mass spectrum + counter ---------- */
-(function () {
-  const c = document.getElementById("spectrum"); let g = fit(c);
-  addEventListener("resize", () => g = fit(c));
-  const peaks = Array.from({ length: 46 }, (_, i) => ({ p: .04 + .92 * (i / 46) + (Math.random() - .5) * .015, h: Math.random() ** 2.4 * .9 + .04, d: Math.random() * .6 }));
-  [7, 19, 26, 33, 41].forEach(i => peaks[i].h = .55 + Math.random() * .4);
-  let t0 = 0;
-  function frame(now) {
-    if (!t0) t0 = now; const t = (now - t0) / 1000;
-    const { x, w, h } = g; x.clearRect(0, 0, w, h);
-    const base = h - 26;
-    x.strokeStyle = "rgba(255,255,255,.12)"; x.beginPath(); x.moveTo(6, base); x.lineTo(w - 6, base); x.stroke();
-    for (const p of peaks) {
-      const k = Math.max(0, Math.min(1, (t - p.d) / .9)), hh = ease(k) * p.h * (base - 14);
-      const breathe = 1 + .03 * Math.sin(now / 500 + p.p * 20);
-      const px = 10 + p.p * (w - 20);
-      const gr = x.createLinearGradient(0, base - hh, 0, base); gr.addColorStop(0, "#cfe0ff"); gr.addColorStop(1, "rgba(127,178,255,.15)");
-      x.fillStyle = gr; x.fillRect(px - 1.2, base - hh * breathe, 2.4, hh * breathe);
-      if (p.h > .5 && k > .9) { x.fillStyle = "rgba(207,224,255,.9)"; x.beginPath(); x.arc(px, base - hh * breathe, 2.4, 0, 6.283); x.fill(); }
-    }
-    x.fillStyle = "#6d7588"; x.font = "400 12px Geist, sans-serif"; x.textAlign = "left"; x.fillText("m/z", 8, h - 6);
-    if (!STILL) requestAnimationFrame(frame);
-  }
-  const cnt = document.getElementById("count");
-  whenSeen(c, () => {
-    requestAnimationFrame(frame);
-    const s = performance.now();
-    (function f(now) { const k = Math.min(1, (now - s) / 2600); cnt.innerHTML = `${Math.round(ease(k) * 4000).toLocaleString("en-US")} <small>of 4,000</small>`; if (k < 1) requestAnimationFrame(f); })(s);
-  }, .25);
-})();
+      .reveal {
+        opacity: 0;
+        transform: translateY(18px);
+        transition:
+          opacity 0.8s ease,
+          transform 0.8s ease;
+      }
+      .reveal.in {
+        opacity: 1;
+        transform: none;
+      }
+      @media (max-width: 900px) {
+        .duel {
+          grid-template-columns: 1fr;
+        }
+        .side + .side {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+        .proof {
+          grid-template-columns: 1fr;
+        }
+        .gate-row {
+          grid-template-columns: repeat(5, 1fr);
+        }
+        .gate-row span {
+          display: none;
+        }
+        .gate-row em {
+          font-size: 14px;
+        }
+        .gate-row div {
+          padding: 14px 4px 16px;
+        }
+        .gate-row b {
+          font-size: 11px;
+          letter-spacing: 0.04em;
+        }
+        nav .links {
+          display: none;
+        }
+        #world {
+          right: -34vmax;
+          top: 56vh;
+          opacity: 0.45;
+        }
+        .ice {
+          left: 78vw;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .reveal,
+        .stamp {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="sky" aria-hidden="true"></canvas>
+    <canvas id="world" class="planet" data-depth="0.18" aria-hidden="true"></canvas>
+    <div class="planet rock" data-depth="0.45" aria-hidden="true"></div>
+    <div class="planet ice" data-depth="0.3" aria-hidden="true"></div>
 
-const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
-document.querySelectorAll(".reveal").forEach(el => io.observe(el));
-</script>
-</body>
+    <nav>
+      <div class="wrap">
+        <a class="logo" href="#"><i></i>Redshift</a>
+        <div class="links">
+          <a href="explore.html">Explore</a><a href="#result">Result</a><a href="#referee">Referee</a
+          ><a href="#proof">Proof</a><a href="https://github.com/VolodymyrLinuxovich/exo-referee">GitHub</a>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="wrap">
+        <h1>Self&#8209;improving AI <em>grades its own work.</em></h1>
+        <p class="sub">
+          Redshift is the referee. Every claim an agent makes is checked against data it never saw before it
+          ships. We ran it on molecules and on planets.
+        </p>
+        <div class="cta">
+          <a class="btn solid" href="#result">See the result</a
+          ><a class="btn line" href="explore.html">Explore the Kepler sky</a>
+        </div>
+      </div>
+    </header>
+
+    <section id="result">
+      <div class="wrap">
+        <h2 class="reveal">Same agents. Same data. <em>One loop has a referee.</em></h2>
+        <p class="lead reveal">
+          Claude agents spent an afternoon improving a planet finder on Kepler telescope data. Then each loop
+          handed astronomers its best <span class="nreal">539</span> candidates from stars it had never seen.
+          That is exactly how many real planets are hiding there.
+        </p>
+        <div class="stage reveal" id="duel">
+          <div class="duel">
+            <div class="side">
+              <h3>Without a referee</h3>
+              <p class="auc">Believed its model scored 0.9999. It had read the answer from the catalog.</p>
+              <canvas id="g-naive" aria-label="Follow-up picks of the loop without a referee"></canvas>
+              <div class="tally">
+                <div>
+                  <div class="v real" id="n-real">0</div>
+                  <div class="k">real planets found</div>
+                </div>
+                <div>
+                  <div class="v false" id="n-false">0</div>
+                  <div class="k">false alarms followed up</div>
+                </div>
+              </div>
+            </div>
+            <div class="side">
+              <h3>With Redshift</h3>
+              <p class="auc">Every change verified on stars no agent had seen.</p>
+              <canvas id="g-guard" aria-label="Follow-up picks of the loop with Redshift"></canvas>
+              <div class="tally">
+                <div>
+                  <div class="v real" id="g-real">0</div>
+                  <div class="k">real planets found</div>
+                </div>
+                <div>
+                  <div class="v false" id="g-false">0</div>
+                  <div class="k">false alarms followed up</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="key">
+            <span><i class="kr"></i>real planet</span><span><b class="kx">&times;</b>false positive</span>
+          </div>
+          <div class="verdict-line">
+            <p id="punch">&nbsp;</p>
+            <button class="btn line replay" id="replay">Run it again</button>
+          </div>
+        </div>
+        <p class="footnote reveal">
+          Each model's top picks among 1,505 Kepler Objects of Interest around 1,328 held&#8209;out stars,
+          scored with the columns that encode the answer removed, the way a new candidate arrives. Data from
+          the NASA Exoplanet Archive. <a href="compare.html">Every claim, charted</a>.
+        </p>
+      </div>
+    </section>
+
+    <section id="referee">
+      <div class="wrap">
+        <h2 class="reveal">Every claim runs the gauntlet. <em>Most don't make it.</em></h2>
+        <p class="lead reveal">
+          Agents never see a label and their code runs sealed. Redshift is the only process that reads the
+          answers. The first gate a claim fails is its verdict.
+        </p>
+        <div class="stage pipe reveal">
+          <canvas id="pipe" aria-label="Claims flowing through five gates"></canvas>
+          <div class="gate-row">
+            <div><b>CRASH</b><em>Did it run?</em><span>Sealed sandbox, must finish</span></div>
+            <div><b>NOISE</b><em>More than luck?</em><span>Three seeds, gain beyond seed noise</span></div>
+            <div><b>LEAK</b><em>Learned at all?</em><span>Still wins on shuffled labels? Caught</span></div>
+            <div>
+              <b>PRIOR</b><em>Reads the data?</em><span>Still wins with the light curve blanked? Caught</span>
+            </div>
+            <div>
+              <b>OVERFIT</b><em>Holds out of sight?</em><span>Must hold on stars no agent has seen</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="proof">
+      <div class="wrap">
+        <h2 class="reveal">Two sciences. <em>Real traps in both.</em></h2>
+        <p class="lead reveal">We did not plant the hard cases. The public datasets ship them.</p>
+        <div class="proof">
+          <div class="stage panel reveal">
+            <h3>An agent rediscovered how astronomers vet planets.</h3>
+            <p class="cap">
+              Both dips look the same. When a background binary is to blame, the light's center shifts during
+              the dip.
+            </p>
+            <canvas
+              id="transit"
+              aria-label="A planet transit next to a background binary that shifts the light centroid"
+            ></canvas>
+            <div class="stamps" id="stamps">
+              <div class="stamp">
+                <strong class="s-good">PROMOTED</strong
+                ><span>Centroid shift. +0.016 AUC on hidden stars</span>
+              </div>
+              <div class="stamp">
+                <strong class="s-good">PROMOTED</strong><span>Transit density must match the star</span>
+              </div>
+              <div class="stamp">
+                <strong class="s-bad">LEAK</strong><span>Catalog name. 0.999 on shuffled labels</span>
+              </div>
+              <div class="stamp">
+                <strong class="s-bad">PRIOR</strong
+                ><span>Archive vetting score. 0.999 with no light curve</span>
+              </div>
+              <div class="stamp">
+                <strong class="s-mid">OVERFIT</strong><span>Stacked boosting. Gone on hidden stars</span>
+              </div>
+            </div>
+          </div>
+          <div class="stage panel reveal">
+            <h3>Molecules from mass spectra.</h3>
+            <p class="cap">MassSpecGym, DeepMind award at the SF AI Research Hackathon.</p>
+            <canvas id="spectrum" aria-label="A mass spectrum drawing in"></canvas>
+            <div class="counter" id="count">0 <small>of 4,000</small></div>
+            <p class="cap">
+              validation spectra list the true molecule first. An agent that notices scores a perfect 1.00 and
+              learns nothing. Our referee reshuffles candidates and keeps labels sealed.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="honest">
+      <div class="wrap">
+        <h2 class="reveal">We check the checker <em>too.</em></h2>
+        <p class="lead reveal">
+          Today we found two false&#8209;positive bugs in our own gates and fixed them. We re&#8209;judged
+          three claims in the open, and nothing was erased. Then a code review found more: tied scores, a
+          sandbox with gaps, an interval that was too narrow. We fixed them and replayed every verdict. All
+          three promotions held.
+        </p>
+        <div class="cta reveal">
+          <a class="btn solid" href="https://github.com/VolodymyrLinuxovich/exo-referee">Read the code</a
+          ><a class="btn line" href="compare.html">See every verdict</a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span>Redshift, by Volodymyr Borysenko</span>
+        <span>Data from the NASA Exoplanet Archive and MassSpecGym. Not affiliated with NASA.</span>
+      </div>
+    </footer>
+
+    <script>
+      "use strict";
+      const STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const DPR = Math.min(devicePixelRatio || 1, 2);
+
+      function fit(c) {
+        const r = c.getBoundingClientRect();
+        c.width = r.width * DPR;
+        c.height = r.height * DPR;
+        const x = c.getContext("2d");
+        x.setTransform(DPR, 0, 0, DPR, 0, 0);
+        return { x, w: r.width, h: r.height };
+      }
+
+      function whenSeen(el, fn, th) {
+        const o = new IntersectionObserver(
+          es =>
+            es.forEach(e => {
+              if (e.isIntersecting) {
+                fn();
+                o.disconnect();
+              }
+            }),
+          { threshold: th || 0.35 }
+        );
+        o.observe(el);
+      }
+
+      const ease = t => 1 - Math.pow(1 - t, 3);
+
+      const lerp = (a, b, t) => a + (b - a) * t;
+
+      /* ---------- sky ---------- */
+      (function () {
+        const c = document.getElementById("sky"),
+          x = c.getContext("2d");
+        let W,
+          H,
+          stars = [];
+        function size() {
+          W = c.width = innerWidth * DPR;
+          H = c.height = innerHeight * DPR;
+          c.style.width = innerWidth + "px";
+          c.style.height = innerHeight + "px";
+          stars = Array.from({ length: Math.round((innerWidth * innerHeight) / 2600) }, () => ({
+            x: Math.random() * W,
+            y: Math.random() * H * 1.6,
+            r: (Math.random() ** 3 * 1.6 + 0.25) * DPR,
+            a: Math.random() * 0.7 + 0.25,
+            t: Math.random() * 6.28,
+            s: Math.random() * 0.02 + 0.004,
+            d: Math.random() * 0.5 + 0.05,
+            hue: Math.random() < 0.12 ? "200,220,255" : Math.random() < 0.06 ? "255,220,190" : "255,255,255",
+          }));
+        }
+        function draw() {
+          x.clearRect(0, 0, W, H);
+          const g = x.createRadialGradient(W * 0.15, H * 0.1, 0, W * 0.15, H * 0.1, W * 0.7);
+          g.addColorStop(0, "rgba(40,60,120,.18)");
+          g.addColorStop(1, "rgba(0,0,0,0)");
+          x.fillStyle = g;
+          x.fillRect(0, 0, W, H);
+          const sy = scrollY * DPR;
+          for (const s of stars) {
+            s.t += s.s;
+            const y = (((s.y - sy * s.d) % (H * 1.6)) + H * 1.6) % (H * 1.6);
+            if (y > H) {
+              continue;
+            }
+            x.globalAlpha = s.a * (0.65 + 0.35 * Math.sin(s.t));
+            x.fillStyle = `rgb(${s.hue})`;
+            x.beginPath();
+            x.arc(s.x, y, s.r, 0, 6.283);
+            x.fill();
+          }
+          x.globalAlpha = 1;
+          if (!STILL) {
+            requestAnimationFrame(draw);
+          }
+        }
+        addEventListener("resize", size);
+        size();
+        draw();
+        if (STILL) {
+          addEventListener("scroll", draw, { passive: true });
+        }
+        const ps = [...document.querySelectorAll(".planet")];
+        addEventListener(
+          "scroll",
+          () => ps.forEach(p => (p.style.transform = `translateY(${-scrollY * p.dataset.depth}px)`)),
+          { passive: true }
+        );
+      })();
+
+      /* ---------- the world: a rotating ice giant, lit from the upper left ---------- */
+      (function () {
+        const c = document.getElementById("world");
+        const S = Math.max(
+          240,
+          Math.min(620, Math.round(c.getBoundingClientRect().width * Math.min(DPR, 1.4)))
+        );
+        c.width = c.height = S;
+        const x = c.getContext("2d");
+        const TW = 512,
+          TH = 256,
+          tex = new Float32Array(TW * TH * 3);
+
+        // seeded value noise, periodic in longitude so the texture wraps
+        let seed = 7;
+        const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        const H = new Float32Array(256 * 256).map(rnd);
+        const sm = t => t * t * (3 - 2 * t);
+        function n2(px, py, per) {
+          const xi = Math.floor(px),
+            yi = Math.floor(py),
+            xf = px - xi,
+            yf = py - yi;
+          const a = (i, j) => H[((((i % per) + per) % per) & 255) * 256 + (j & 255)];
+          const u = sm(xf),
+            v = sm(yf);
+          return (
+            (a(xi, yi) * (1 - u) + a(xi + 1, yi) * u) * (1 - v) +
+            (a(xi, yi + 1) * (1 - u) + a(xi + 1, yi + 1) * u) * v
+          );
+        }
+        function fbm(px, py) {
+          let s = 0,
+            a = 0.5,
+            per = 8;
+          for (let o = 0; o < 4; o++) {
+            s += a * n2(px, py, per);
+            px *= 2;
+            py *= 2;
+            per *= 2;
+            a *= 0.5;
+          }
+          return s;
+        }
+        const PAL = [
+          [10, 34, 64],
+          [24, 78, 124],
+          [52, 122, 172],
+          [104, 172, 210],
+          [158, 212, 234],
+          [46, 104, 152],
+        ];
+        function pal(t) {
+          t = Math.max(0, Math.min(0.9999, t)) * (PAL.length - 1);
+          const i = Math.floor(t),
+            f = t - i,
+            A = PAL[i],
+            B = PAL[i + 1];
+          return [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f];
+        }
+        for (let v = 0; v < TH; v++) {
+          const lat = (v / TH - 0.5) * Math.PI;
+          for (let u = 0; u < TW; u++) {
+            const px = (u / TW) * 8,
+              py = (v / TH) * 4;
+            const warp = fbm(px * 1.0, py * 3.2) * 2.4;
+            let t = 0.5 + 0.5 * Math.sin(lat * 9 + warp * 1.8) * 0.5 + (fbm(px * 1.5, py * 4) - 0.5) * 0.32;
+            const dx = Math.min(Math.abs(u - TW * 0.3), TW - Math.abs(u - TW * 0.3)) / (TW * 0.05),
+              dy = (v - TH * 0.66) / (TH * 0.035);
+            const storm = Math.exp(-(dx * dx + dy * dy));
+            t = t * (1 - storm) + (0.92 - 0.15 * Math.sin(dx * 3)) * storm;
+            const col = pal(t),
+              k = (v * TW + u) * 3;
+            tex[k] = col[0];
+            tex[k + 1] = col[1];
+            tex[k + 2] = col[2];
+          }
+        }
+
+        // per-pixel sphere lookup: texture coords and lighting, computed once
+        const R = S * 0.43,
+          cx = S / 2,
+          cy = S / 2,
+          tilt = -0.42,
+          ct = Math.cos(tilt),
+          st = Math.sin(tilt);
+        const Lx = -0.62,
+          Ly = -0.48,
+          Lz = 0.62,
+          Ln = Math.hypot(Lx, Ly, Lz);
+        const idx = [],
+          uu = [],
+          vv = [],
+          lit = [],
+          edge = [];
+        for (let j = 0; j < S; j++) {
+          for (let i = 0; i < S; i++) {
+            const nx = (i + 0.5 - cx) / R,
+              ny = (j + 0.5 - cy) / R,
+              r2 = nx * nx + ny * ny;
+            if (r2 >= 1) {
+              continue;
+            }
+            const nz = Math.sqrt(1 - r2);
+            const rx = nx * ct - ny * st,
+              ry = nx * st + ny * ct; // axial tilt
+            const lat = Math.asin(ry),
+              lon = Math.atan2(rx, nz);
+            const d = (nx * Lx + ny * Ly + nz * Lz) / Ln;
+            const diffuse = Math.max(0, d),
+              term = sm(Math.max(0, Math.min(1, (d + 0.18) / 0.5)));
+            const limb = 0.55 + 0.45 * nz;
+            idx.push((j * S + i) * 4);
+            uu.push((lon / (2 * Math.PI) + 0.5) * TW);
+            vv.push((lat / Math.PI + 0.5) * (TH - 1));
+            lit.push(Math.min(1.25, (0.035 + diffuse * 1.05) * term * limb + 0.02));
+            edge.push(Math.max(0, Math.min(1, ((1 - Math.sqrt(r2)) * R) / 1.4)) * 255);
+          }
+        }
+        const img = x.createImageData(S, S),
+          D = img.data,
+          N = idx.length;
+        let off = 0,
+          last = 0;
+        function draw(now) {
+          if (now - last > 50 || !last) {
+            last = now;
+            off = (off + 0.35) % TW;
+            for (let p = 0; p < N; p++) {
+              const u = Math.floor(uu[p] + off) % TW,
+                k = (Math.floor(vv[p]) * TW + u) * 3,
+                L = lit[p],
+                q = idx[p];
+              D[q] = tex[k] * L;
+              D[q + 1] = tex[k + 1] * L;
+              D[q + 2] = tex[k + 2] * L;
+              D[q + 3] = edge[p];
+            }
+            x.clearRect(0, 0, S, S);
+            x.putImageData(img, 0, 0);
+            // atmosphere: a thin bright rim on the lit side and a soft halo
+            x.globalCompositeOperation = "lighter";
+            const g = x.createRadialGradient(cx, cy, R * 0.97, cx, cy, R * 1.12);
+            g.addColorStop(0, "rgba(130,205,255,.42)");
+            g.addColorStop(0.25, "rgba(110,190,255,.16)");
+            g.addColorStop(1, "rgba(110,190,255,0)");
+            x.fillStyle = g;
+            x.beginPath();
+            x.arc(cx, cy, R * 1.12, 0, 6.283);
+            x.arc(cx, cy, R * 0.97, 0, 6.283, true);
+            x.fill();
+            const sh = x.createLinearGradient(cx - R, cy - R, cx + R * 0.9, cy + R * 0.9); // halo fades on the night side
+            sh.addColorStop(0, "rgba(0,0,0,0)");
+            sh.addColorStop(0.55, "rgba(0,0,0,0)");
+            sh.addColorStop(1, "rgba(3,5,11,1)");
+            x.globalCompositeOperation = "destination-out";
+            x.fillStyle = sh;
+            x.beginPath();
+            x.arc(cx, cy, R * 1.12, 0, 6.283);
+            x.arc(cx, cy, R * 0.985, 0, 6.283, true);
+            x.fill();
+            x.globalCompositeOperation = "source-over";
+          }
+          if (!STILL) {
+            requestAnimationFrame(draw);
+          }
+        }
+        requestAnimationFrame(draw);
+      })();
+
+      /* ---------- follow-up budget: each loop's best picks, real or false ---------- */
+      (function () {
+        const COLS = 28;
+        let F = null;
+        const cv = { naive: document.getElementById("g-naive"), guarded: document.getElementById("g-guard") };
+        const num = { naive: ["n-real", "n-false"], guarded: ["g-real", "g-false"] };
+        function layout(c, n) {
+          const w = c.getBoundingClientRect().width,
+            cell = w / COLS,
+            rows = Math.ceil(n / COLS);
+          c.style.height = rows * cell + "px";
+          return fit(c);
+        }
+        const cells = k => F.loops[k].picks; // the model's actual ranked picks, 1 = real planet
+        function draw(c, g, picks, upto, now) {
+          const { x, w } = g,
+            cell = w / COLS,
+            r = cell * 0.3;
+          x.clearRect(0, 0, g.w, g.h);
+          for (let i = 0; i < picks.length; i++) {
+            const cx = ((i % COLS) + 0.5) * cell,
+              cy = (Math.floor(i / COLS) + 0.5) * cell;
+            if (i >= upto) {
+              x.fillStyle = "rgba(255,255,255,.05)";
+              x.beginPath();
+              x.arc(cx, cy, r * 0.55, 0, 6.283);
+              x.fill();
+              continue;
+            }
+            const fresh = Math.max(0, 1 - (upto - i) / 40);
+            if (picks[i]) {
+              x.shadowColor = "#9cc3ff";
+              x.shadowBlur = 6 + fresh * 10;
+              const gr = x.createRadialGradient(cx - r * 0.35, cy - r * 0.35, 0, cx, cy, r);
+              gr.addColorStop(0, "#ffffff");
+              gr.addColorStop(0.6, "#b9d4ff");
+              gr.addColorStop(1, "#5d86c7");
+              x.fillStyle = gr;
+              x.beginPath();
+              x.arc(cx, cy, r * (1 + fresh * 0.5), 0, 6.283);
+              x.fill();
+              x.shadowBlur = 0;
+            } else {
+              const a = r * (0.9 + fresh * 0.6);
+              x.strokeStyle = "#ff7a59";
+              x.lineWidth = Math.max(1.6, cell * 0.1);
+              x.shadowColor = "#ff7a59";
+              x.shadowBlur = 8 + fresh * 12;
+              x.beginPath();
+              x.moveTo(cx - a, cy - a);
+              x.lineTo(cx + a, cy + a);
+              x.moveTo(cx + a, cy - a);
+              x.lineTo(cx - a, cy + a);
+              x.stroke();
+              x.shadowBlur = 0;
+            }
+          }
+        }
+        let run = 0;
+        function play() {
+          const id = ++run,
+            P = { naive: cells("naive"), guarded: cells("guarded") },
+            G = {};
+          for (const k in cv) {
+            G[k] = layout(cv[k], F.real);
+          }
+          document.getElementById("punch").innerHTML = "&nbsp;";
+          const T = 4200,
+            t0 = performance.now();
+          (function f(now) {
+            if (id !== run) {
+              return;
+            }
+            const t = Math.min(1, (now - t0) / T),
+              upto = Math.round(ease(t) * F.real);
+            for (const k in cv) {
+              draw(cv[k], G[k], P[k], upto, now);
+              const seen = P[k].slice(0, upto),
+                real = seen.reduce((a, b) => a + b, 0);
+              document.getElementById(num[k][0]).textContent = real;
+              document.getElementById(num[k][1]).textContent = upto - real;
+            }
+            if (t < 1) {
+              requestAnimationFrame(f);
+            } else {
+              const n = F.loops.naive[String(F.real)],
+                g = F.loops.guarded[String(F.real)];
+              document.getElementById("punch").innerHTML =
+                `Same telescope time. Redshift finds <b>${g.real - n.real} more planets</b> and chases <b>${Math.round(n.false / Math.max(1, g.false))}&times; fewer false alarms</b>.${F.loops.start && n.real < F.loops.start[String(F.real)].real ? " The unchecked loop ended worse than where it started." : ""}`;
+            }
+          })(t0);
+        }
+        document.getElementById("replay").addEventListener("click", () => F && play());
+        addEventListener("resize", () => {
+          if (F) {
+            play();
+          }
+        });
+        fetch("followup.json")
+          .then(r => r.json())
+          .then(d => {
+            F = d;
+            document.querySelectorAll(".nreal").forEach(e => (e.textContent = d.real));
+            whenSeen(document.getElementById("duel"), play, 0.3);
+          })
+          .catch(() => {});
+      })();
+
+      /* ---------- gates pipeline ---------- */
+      (function () {
+        const c = document.getElementById("pipe");
+        let g = fit(c);
+        addEventListener("resize", () => (g = fit(c)));
+        const CLAIMS = [
+          { t: "catalog name", fate: 2, v: "LEAK" },
+          { t: "320 trees", fate: 1, v: "NOISE" },
+          { t: "centroid shift", fate: 5, v: "PROMOTED" },
+          { t: "vetting score", fate: 3, v: "PRIOR" },
+          { t: "stacked boosting", fate: 4, v: "OVERFIT" },
+          { t: "broken import", fate: 0, v: "CRASH" },
+          { t: "stellar density", fate: 5, v: "PROMOTED" },
+          { t: "lucky seed", fate: 1, v: "NOISE" },
+        ];
+        const gx = i => (g.w * (i + 0.5)) / 5;
+        let orbs = [],
+          sparks = [],
+          flashes = [0, 0, 0, 0, 0],
+          labels = [],
+          k = 0,
+          last = 0,
+          promoted = 0,
+          running = false;
+        function spawn() {
+          const d = CLAIMS[k++ % CLAIMS.length];
+          orbs.push({
+            ...d,
+            x: -20,
+            y: g.h * 0.52 + (Math.random() - 0.5) * 26,
+            sp: g.w / 300,
+            dead: false,
+            done: false,
+          });
+        }
+        function frame(now) {
+          const { x, w, h } = g;
+          if (!last) {
+            last = now;
+          }
+          const dt = Math.min(48, now - last);
+          last = now;
+          if (!orbs.length || orbs[orbs.length - 1].x > w * 0.2) {
+            spawn();
+          }
+          x.clearRect(0, 0, w, h);
+          // gates
+          for (let i = 0; i < 5; i++) {
+            const cx = gx(i),
+              f = flashes[i];
+            flashes[i] = Math.max(0, f - dt / 600);
+            const col =
+              f > 0
+                ? flashes[i + 5] === "bad"
+                  ? `rgba(255,122,89,${0.25 + f * 0.75})`
+                  : `rgba(95,211,154,${0.2 + f * 0.6})`
+                : "rgba(156,195,255,.28)";
+            const ry = h * 0.33,
+              sx = Math.min(0.32, ((w / 5) * 0.3) / ry);
+            x.save();
+            x.translate(cx, h * 0.52);
+            x.scale(sx, 1);
+            x.lineWidth = 3 / sx;
+            x.strokeStyle = col;
+            x.shadowColor = col;
+            x.shadowBlur = 18 + f * 30;
+            x.beginPath();
+            x.arc(0, 0, ry, 0, 6.283);
+            x.stroke();
+            x.restore();
+          }
+          // orbs
+          for (const o of orbs) {
+            if (o.dead) {
+              continue;
+            }
+            const nextGate = [0, 1, 2, 3, 4].find(i => gx(i) > o.x - 1);
+            if (!o.done) {
+              o.x += (o.sp * dt) / 4;
+              if (o.fate < 5 && o.x >= gx(o.fate)) {
+                o.dead = true;
+                flashes[o.fate] = 1;
+                flashes[o.fate + 5] = "bad";
+                for (let s = 0; s < 26; s++) {
+                  const a = Math.random() * 6.283,
+                    v = Math.random() * 2.4 + 0.6;
+                  sparks.push({ x: gx(o.fate), y: o.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, l: 1 });
+                }
+                labels.push({ x: gx(o.fate), y: h * 0.52 - h * 0.33 - 12, t: o.v, c: "#ff7a59", l: 1 });
+                continue;
+              }
+              if (
+                nextGate !== undefined &&
+                Math.abs(o.x - gx(nextGate)) < (o.sp * dt) / 4 + 0.5 &&
+                nextGate < o.fate
+              ) {
+                flashes[nextGate] = 0.7;
+                flashes[nextGate + 5] = "good";
+              }
+              if (o.fate === 5 && o.x > w - 46) {
+                o.done = true;
+                o.t0 = now;
+                promoted++;
+                labels.push({ x: w - 50, y: o.y - 20, t: "PROMOTED", c: "#5fd39a", l: 1, low: true });
+              }
+            }
+            const good = o.fate === 5 && o.x > gx(4);
+            const pulse = o.done ? 1 + 0.25 * Math.sin((now - o.t0) / 120) : 1;
+            if (o.done && now - o.t0 > 1400) {
+              o.dead = true;
+              continue;
+            }
+            x.shadowColor = good ? "#5fd39a" : "#9cc3ff";
+            x.shadowBlur = 22;
+            x.fillStyle = good ? "#5fd39a" : "#eef1f6";
+            x.beginPath();
+            x.arc(o.x, o.y, 6.5 * pulse, 0, 6.283);
+            x.fill();
+            x.shadowBlur = 0;
+            x.globalAlpha = 0.9;
+            x.fillStyle = "#a9b1c2";
+            x.font = `500 ${w < 600 ? 10.5 : 12.5}px Geist, sans-serif`;
+            x.textAlign = "center";
+            const tw = x.measureText(o.t).width / 2;
+            x.fillText(o.t, Math.max(tw + 4, Math.min(w - tw - 4, o.x)), o.y + 26);
+            x.globalAlpha = 1;
+            // comet tail
+            const tail = x.createLinearGradient(o.x - 60, 0, o.x, 0);
+            tail.addColorStop(0, "rgba(156,195,255,0)");
+            tail.addColorStop(1, good ? "rgba(95,211,154,.5)" : "rgba(156,195,255,.45)");
+            x.strokeStyle = tail;
+            x.lineWidth = 3;
+            x.beginPath();
+            x.moveTo(o.x - 60, o.y);
+            x.lineTo(o.x - 7, o.y);
+            x.stroke();
+          }
+          orbs = orbs.filter(o => !o.dead || o.x < 0);
+          for (const s of sparks) {
+            s.x += (s.vx * dt) / 8;
+            s.y += (s.vy * dt) / 8;
+            s.l -= dt / 700;
+            x.globalAlpha = Math.max(0, s.l);
+            x.fillStyle = "#ff7a59";
+            x.fillRect(s.x, s.y, 2.4, 2.4);
+          }
+          sparks = sparks.filter(s => s.l > 0);
+          x.globalAlpha = 1;
+          for (const l of labels) {
+            l.l -= dt / 1500;
+            l.y = l.low ? l.y - dt / 400 : Math.max(16, l.y - dt / 160);
+            x.font = "600 13px Geist, sans-serif";
+            const lw = x.measureText(l.t).width / 2;
+            l.x = Math.max(lw + 4, Math.min(w - lw - 4, l.x));
+            x.globalAlpha = Math.max(0, Math.min(1, l.l * 1.6));
+            x.fillStyle = l.c;
+            x.font = "600 13px Geist, sans-serif";
+            x.textAlign = "center";
+            x.fillText(l.t, l.x, l.y);
+          }
+          labels = labels.filter(l => l.l > 0);
+          x.globalAlpha = 1;
+          x.textAlign = "right";
+          x.fillStyle = "#6d7588";
+          x.font = "400 12.5px Geist, sans-serif";
+          x.fillText(`promoted ${promoted}`, w - 16, h - 14);
+          requestAnimationFrame(frame);
+        }
+        whenSeen(
+          c,
+          () => {
+            if (!running && !STILL) {
+              running = true;
+              requestAnimationFrame(frame);
+            }
+          },
+          0.2
+        );
+      })();
+
+      /* ---------- transit vs background binary ---------- */
+      (function () {
+        const c = document.getElementById("transit");
+        let g = fit(c);
+        addEventListener("resize", () => (g = fit(c)));
+        const P = 5200;
+        function scene(x, ox, w, h, t, blend) {
+          const cx = ox + w / 2,
+            cy = 70,
+            R = 42;
+          // star
+          const sg = x.createRadialGradient(cx, cy, 0, cx, cy, R * 2.2);
+          sg.addColorStop(0, "rgba(255,236,200,1)");
+          sg.addColorStop(0.42, "rgba(255,205,140,.95)");
+          sg.addColorStop(0.46, "rgba(255,170,90,.35)");
+          sg.addColorStop(1, "rgba(255,150,80,0)");
+          const ph = (t % P) / P; // 0..1 orbit phase
+          const tx = lerp(cx - R * 1.9, cx + R * 1.9, ph); // transiting body x
+          const inT = Math.abs(tx - cx) < R;
+          const depth = inT ? (blend ? Math.max(0, 1 - Math.abs(tx - cx) / R) * 0.55 : 0.3) : 0;
+          x.globalAlpha = 1 - depth * 0.6;
+          x.fillStyle = sg;
+          x.beginPath();
+          x.arc(cx, cy, R * 2.2, 0, 6.283);
+          x.fill();
+          x.globalAlpha = 1;
+          if (blend) {
+            // faint background pair
+            const bx = cx + 30,
+              by = cy - 26;
+            x.fillStyle = "rgba(255,190,150,.55)";
+            x.beginPath();
+            x.arc(bx + Math.cos(t / 400) * 3, by, 3.2, 0, 6.283);
+            x.fill();
+            x.fillStyle = "rgba(255,190,150,.35)";
+            x.beginPath();
+            x.arc(bx - Math.cos(t / 400) * 3, by + 1, 2.4, 0, 6.283);
+            x.fill();
+          } else if (Math.abs(tx - cx) < R * 1.8) {
+            x.fillStyle = "#05070d";
+            x.beginPath();
+            x.arc(tx, cy + 6, 8, 0, 6.283);
+            x.fill();
+          }
+          // centroid crosshair
+          const shift = blend && inT ? -depth * 22 : 0;
+          const col = shift ? "#ff7a59" : "#9cc3ff";
+          x.strokeStyle = col;
+          x.lineWidth = 1.5;
+          x.shadowColor = col;
+          x.shadowBlur = shift ? 10 : 0;
+          const hx = cx + shift,
+            hy = cy - shift * 0.6;
+          x.beginPath();
+          x.moveTo(hx - 10, hy);
+          x.lineTo(hx - 4, hy);
+          x.moveTo(hx + 4, hy);
+          x.lineTo(hx + 10, hy);
+          x.moveTo(hx, hy - 10);
+          x.lineTo(hx, hy - 4);
+          x.moveTo(hx, hy + 4);
+          x.lineTo(hx, hy + 10);
+          x.stroke();
+          x.shadowBlur = 0;
+          // light curve
+          const top = 156,
+            bh = 56,
+            l0 = ox + 14,
+            l1 = ox + w - 14;
+          x.strokeStyle = "rgba(255,255,255,.08)";
+          x.beginPath();
+          x.moveTo(l0, top + bh);
+          x.lineTo(l1, top + bh);
+          x.stroke();
+          x.strokeStyle = blend ? "#ff7a59" : "#5fd39a";
+          x.lineWidth = 2;
+          x.beginPath();
+          for (let i = 0; i <= 120 * ph; i++) {
+            const p = i / 120,
+              bx = lerp(cx - R * 1.9, cx + R * 1.9, p),
+              d = Math.abs(bx - cx);
+            const dd =
+              d < R ? (blend ? (1 - d / R) * 0.55 : d > R * 0.8 ? (0.3 * (R - d)) / (R * 0.2) : 0.3) : 0;
+            const px = lerp(l0, l1, p),
+              py = top + dd * bh * 1.5 + Math.sin(i * 1.7) * 1.2;
+            i ? x.lineTo(px, py) : x.moveTo(px, py);
+          }
+          x.stroke();
+          x.fillStyle = "#a9b1c2";
+          x.font = "500 13px Geist, sans-serif";
+          x.textAlign = "center";
+          x.fillText(blend ? "Background binary" : "Real planet", cx, h - 8);
+          x.fillStyle = shift ? "#ff7a59" : "#6d7588";
+          x.font = "400 12px Geist, sans-serif";
+          x.fillText(
+            blend ? (shift ? "light center moves" : "watch the crosshair") : "light center stays put",
+            cx,
+            140
+          );
+        }
+        function frame(t) {
+          const { x, w, h } = g;
+          x.clearRect(0, 0, w, h);
+          scene(x, 0, w / 2, h, t, false);
+          scene(x, w / 2, w / 2, h, t + 0, true);
+          x.strokeStyle = "rgba(255,255,255,.07)";
+          x.beginPath();
+          x.moveTo(w / 2, 10);
+          x.lineTo(w / 2, h - 24);
+          x.stroke();
+          if (!STILL) {
+            requestAnimationFrame(frame);
+          }
+        }
+        whenSeen(c, () => requestAnimationFrame(frame), 0.2);
+        const st = [...document.querySelectorAll(".stamp")];
+        whenSeen(
+          document.getElementById("stamps"),
+          () => st.forEach((s, i) => setTimeout(() => s.classList.add("on"), 250 + i * 420)),
+          0.3
+        );
+      })();
+
+      /* ---------- mass spectrum + counter ---------- */
+      (function () {
+        const c = document.getElementById("spectrum");
+        let g = fit(c);
+        addEventListener("resize", () => (g = fit(c)));
+        const peaks = Array.from({ length: 46 }, (_, i) => ({
+          p: 0.04 + 0.92 * (i / 46) + (Math.random() - 0.5) * 0.015,
+          h: Math.random() ** 2.4 * 0.9 + 0.04,
+          d: Math.random() * 0.6,
+        }));
+        [7, 19, 26, 33, 41].forEach(i => (peaks[i].h = 0.55 + Math.random() * 0.4));
+        let t0 = 0;
+        function frame(now) {
+          if (!t0) {
+            t0 = now;
+          }
+          const t = (now - t0) / 1000;
+          const { x, w, h } = g;
+          x.clearRect(0, 0, w, h);
+          const base = h - 26;
+          x.strokeStyle = "rgba(255,255,255,.12)";
+          x.beginPath();
+          x.moveTo(6, base);
+          x.lineTo(w - 6, base);
+          x.stroke();
+          for (const p of peaks) {
+            const k = Math.max(0, Math.min(1, (t - p.d) / 0.9)),
+              hh = ease(k) * p.h * (base - 14);
+            const breathe = 1 + 0.03 * Math.sin(now / 500 + p.p * 20);
+            const px = 10 + p.p * (w - 20);
+            const gr = x.createLinearGradient(0, base - hh, 0, base);
+            gr.addColorStop(0, "#cfe0ff");
+            gr.addColorStop(1, "rgba(127,178,255,.15)");
+            x.fillStyle = gr;
+            x.fillRect(px - 1.2, base - hh * breathe, 2.4, hh * breathe);
+            if (p.h > 0.5 && k > 0.9) {
+              x.fillStyle = "rgba(207,224,255,.9)";
+              x.beginPath();
+              x.arc(px, base - hh * breathe, 2.4, 0, 6.283);
+              x.fill();
+            }
+          }
+          x.fillStyle = "#6d7588";
+          x.font = "400 12px Geist, sans-serif";
+          x.textAlign = "left";
+          x.fillText("m/z", 8, h - 6);
+          if (!STILL) {
+            requestAnimationFrame(frame);
+          }
+        }
+        const cnt = document.getElementById("count");
+        whenSeen(
+          c,
+          () => {
+            requestAnimationFrame(frame);
+            const s = performance.now();
+            (function f(now) {
+              const k = Math.min(1, (now - s) / 2600);
+              cnt.innerHTML = `${Math.round(ease(k) * 4000).toLocaleString("en-US")} <small>of 4,000</small>`;
+              if (k < 1) {
+                requestAnimationFrame(f);
+              }
+            })(s);
+          },
+          0.25
+        );
+      })();
+
+      const io = new IntersectionObserver(
+        es =>
+          es.forEach(e => {
+            if (e.isIntersecting) {
+              e.target.classList.add("in");
+              io.unobserve(e.target);
+            }
+          }),
+        { threshold: 0.12 }
+      );
+      document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+    </script>
+  </body>
 </html>

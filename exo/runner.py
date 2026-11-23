@@ -8,6 +8,7 @@ learns which mode it is in, and the sandbox denies the real data folder, the run
 cache, so a candidate cannot look up answers or undo an ablation by re-reading the originals.
 It writes only val.npy, test.npy and run_meta.json back into WORKDIR.
 """
+
 import importlib.util
 import json
 import os
@@ -19,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 work, seed = Path(sys.argv[1]), int(sys.argv[2])
-os.environ["EXO_DATA"] = str(work)          # candidates read meta.json from here
+os.environ["EXO_DATA"] = str(work)  # candidates read meta.json from here
 
 spec = importlib.util.spec_from_file_location("candidate", work / "candidate.py")
 m = importlib.util.module_from_spec(spec)

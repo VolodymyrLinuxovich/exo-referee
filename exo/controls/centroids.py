@@ -1,5 +1,6 @@
 """Honest control: add light-curve vetting diagnostics (centroid offsets, odd-even depth,
 event statistics). Real astrophysics: background eclipsing binaries shift the centroid."""
+
 import json
 import os
 from pathlib import Path
@@ -13,9 +14,12 @@ COLS = META["features"] + META["diagnostics"]
 
 
 def train(train_df, seed):
-    m = make_pipeline(SimpleImputer(strategy="median"),
-                      RandomForestClassifier(n_estimators=300, min_samples_leaf=2, max_features=0.3,
-                                             n_jobs=2, random_state=seed))
+    m = make_pipeline(
+        SimpleImputer(strategy="median"),
+        RandomForestClassifier(
+            n_estimators=300, min_samples_leaf=2, max_features=0.3, n_jobs=2, random_state=seed
+        ),
+    )
     m.fit(train_df[COLS], train_df["label"])
     return m
 

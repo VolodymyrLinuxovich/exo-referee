@@ -7,7 +7,7 @@
 Judges the planted cheats and the honest control against the starting model in a throwaway runs
 folder, attacks the sandbox, and checks the statistics against scikit-learn. Exits 1 on any miss.
 """
-import json
+
 import os
 import shutil
 import sys
@@ -16,7 +16,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 WORK = Path(tempfile.mkdtemp(prefix="selftest_"))
-os.environ["EXO_RUNS"] = str(WORK)                       # never touches the real runs/ or incumbent
+os.environ["EXO_RUNS"] = str(WORK)  # never touches the real runs/ or incumbent
 if "--quick" in sys.argv and (HERE / "runs/cache.json").exists():
     shutil.copy(HERE / "runs/cache.json", WORK / "cache.json")
 sys.path.insert(0, str(HERE))
@@ -34,7 +34,8 @@ EXPECT = [
     ("controls/centroids.py", "PROMOTED", "honest centroid physics"),
 ]
 
-ATTACK = '''
+ATTACK = (
+    """
 import os
 from pathlib import Path
 EXO = Path(r"%s")
@@ -54,7 +55,9 @@ def train(df, seed):
     raise SystemExit("LEAKED write")
 def predict(s, df):
     return [0.5] * len(df)
-''' % HERE
+"""
+    % HERE
+)
 
 fails = 0
 
@@ -69,9 +72,12 @@ try:
     print("statistics")
     rng = np.random.default_rng(3)
     y = rng.integers(0, 2, 2000)
-    p = np.round(rng.random(2000) + y * .3, 2)               # heavy ties on purpose
-    check(abs(fastci.auc(y, p) - roc_auc_score(y, p)) < 1e-12, f"AUC matches scikit-learn with ties (native: {fastci.NATIVE})")
-    check(fastci.auc(y, np.zeros(2000)) == .5, "constant predictions score 0.5")
+    p = np.round(rng.random(2000) + y * 0.3, 2)  # heavy ties on purpose
+    check(
+        abs(fastci.auc(y, p) - roc_auc_score(y, p)) < 1e-12,
+        f"AUC matches scikit-learn with ties (native: {fastci.NATIVE})",
+    )
+    check(fastci.auc(y, np.zeros(2000)) == 0.5, "constant predictions score 0.5")
 
     print("gates, against the starting model")
     for path, want, what in EXPECT:

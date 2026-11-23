@@ -5,6 +5,7 @@
 Prints the run as Apify recorded it: run ID and console link, status, duration, compute units,
 the Actor's Crawlee log lines, and the papers in its dataset. Needs APIFY_TOKEN and APIFY_ACTOR in .env.
 """
+
 import json
 import os
 import sys
@@ -20,9 +21,12 @@ B, DIM, G, RST = "\033[1m", "\033[2m", "\033[1;32m", "\033[0m"
 
 
 def api(path, data=None, raw=False):
-    req = urllib.request.Request(f"https://api.apify.com/v2/{path}", method="POST" if data is not None else "GET",
-                                 data=json.dumps(data).encode() if data is not None else None,
-                                 headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"})
+    req = urllib.request.Request(
+        f"https://api.apify.com/v2/{path}",
+        method="POST" if data is not None else "GET",
+        data=json.dumps(data).encode() if data is not None else None,
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"},
+    )
     with urllib.request.urlopen(req, timeout=120) as r:
         body = r.read().decode()
     return body if raw else json.loads(body)
@@ -38,8 +42,11 @@ while run["status"] in ("READY", "RUNNING"):
     time.sleep(2)
     run = api(f"actor-runs/{run['id']}")["data"]
 stats = run.get("stats", {})
-print(f"      {DIM}status{RST} {G if run['status'] == 'SUCCEEDED' else ''}{run['status']}{RST} in {stats.get('runTimeSecs', time.time() - t0):.1f} s"
-      f", {stats.get('computeUnits', 0):.4f} compute units\n", flush=True)
+print(
+    f"      {DIM}status{RST} {G if run['status'] == 'SUCCEEDED' else ''}{run['status']}{RST} in {stats.get('runTimeSecs', time.time() - t0):.1f} s"
+    f", {stats.get('computeUnits', 0):.4f} compute units\n",
+    flush=True,
+)
 
 log = api(f"actor-runs/{run['id']}/log", raw=True)
 for line in log.splitlines():

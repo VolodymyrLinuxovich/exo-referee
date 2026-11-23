@@ -5,6 +5,7 @@ with identical results if it is not built. Both resample host stars by default: 
 around the same star are not independent, so resampling single objects would make the
 interval too narrow and let noise through the NOISE and OVERFIT gates.
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -30,8 +31,18 @@ if _LIB is not None:
     _LIB.fastci_paired_ci.restype = None
     _LIB.fastci_paired_ci.argtypes = [_D, _D, _I8, ctypes.c_int64, ctypes.c_int64, ctypes.c_uint64, _D, _D]
     _LIB.fastci_paired_ci_star.restype = None
-    _LIB.fastci_paired_ci_star.argtypes = [_D, _D, _I8, _I64, ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,
-                                           ctypes.c_uint64, _D, _D]
+    _LIB.fastci_paired_ci_star.argtypes = [
+        _D,
+        _D,
+        _I8,
+        _I64,
+        ctypes.c_int64,
+        ctypes.c_int64,
+        ctypes.c_int64,
+        ctypes.c_uint64,
+        _D,
+        _D,
+    ]
 
 NATIVE = _LIB is not None
 
@@ -48,8 +59,13 @@ def auc(y: np.ndarray, p: np.ndarray) -> float:
     """ROC AUC; tied predictions share their average rank (matches sklearn's roc_auc_score)."""
     y, p = _i8(y), _f64(p)
     if NATIVE:
-        return float(_LIB.fastci_auc(p.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
-                                     y.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)), len(y)))
+        return float(
+            _LIB.fastci_auc(
+                p.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+                y.ctypes.data_as(ctypes.POINTER(ctypes.c_int8)),
+                len(y),
+            )
+        )
     pos = y == 1
     n1, n0 = int(pos.sum()), int((~pos).sum())
     if n1 == 0 or n0 == 0:
@@ -72,8 +88,16 @@ def paired_ci(y, c, b, groups=None, n: int = 2000, seed: int = 0) -> tuple[float
             _LIB.fastci_paired_ci(*args, len(y), n, seed, ctypes.byref(lo), ctypes.byref(hi))
         else:
             codes, uniq = _codes(groups)
-            _LIB.fastci_paired_ci_star(*args, codes.ctypes.data_as(ctypes.POINTER(ctypes.c_int64)), len(y),
-                                       len(uniq), n, seed, ctypes.byref(lo), ctypes.byref(hi))
+            _LIB.fastci_paired_ci_star(
+                *args,
+                codes.ctypes.data_as(ctypes.POINTER(ctypes.c_int64)),
+                len(y),
+                len(uniq),
+                n,
+                seed,
+                ctypes.byref(lo),
+                ctypes.byref(hi),
+            )
         return lo.value, hi.value
     return _paired_ci_numpy(y, c, b, groups, n, seed)
 
@@ -104,16 +128,23 @@ if __name__ == "__main__":
     # Self-check: native and NumPy agree on AUC, and the bench shows why the hot path is in C++.
     import time
     from sklearn.metrics import roc_auc_score
+
     rng = np.random.default_rng(1)
     y = rng.integers(0, 2, 1535)
-    c = np.round(rng.random(1535) * .6 + y * .3, 2)
-    b = np.round(rng.random(1535) * .6 + y * .25, 2)
+    c = np.round(rng.random(1535) * 0.6 + y * 0.3, 2)
+    b = np.round(rng.random(1535) * 0.6 + y * 0.25, 2)
     stars = rng.integers(0, 1328, 1535)
     print("native library:", NATIVE)
     print("auc", auc(y, c), "sklearn", roc_auc_score(y, c))
-    t = time.time(); r1 = paired_ci(y, c, b, stars); t1 = time.time() - t
+    t = time.time()
+    r1 = paired_ci(y, c, b, stars)
+    t1 = time.time() - t
     nat, NATIVE = NATIVE, False
-    t = time.time(); r2 = paired_ci(y, c, b, stars); t2 = time.time() - t
+    t = time.time()
+    r2 = paired_ci(y, c, b, stars)
+    t2 = time.time() - t
     NATIVE = nat
-    print(f"star bootstrap CI  native {r1[0]:+.4f} {r1[1]:+.4f} in {t1:.2f}s | numpy {r2[0]:+.4f} {r2[1]:+.4f} in {t2:.2f}s")
+    print(
+        f"star bootstrap CI  native {r1[0]:+.4f} {r1[1]:+.4f} in {t1:.2f}s | numpy {r2[0]:+.4f} {r2[1]:+.4f} in {t2:.2f}s"
+    )
     sys.exit(0 if abs(auc(y, c) - roc_auc_score(y, c)) < 1e-12 else 1)

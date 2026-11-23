@@ -16,6 +16,7 @@ Each cycle, in order:
 
 Humans stay on the loop: every cycle leaves a report, and a failed self-test halts the loop.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,47 +36,68 @@ EXO = ROOT / "exo"
 PY = str(ROOT / ".venv/bin/python")
 STATE = ROOT / "loop/state.json"
 REPORTS = ROOT / "egbe-docs/reports"
-NASA = ("https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
-        "select+kepoi_name,koi_disposition+from+cumulative&format=csv")
+NASA = (
+    "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query="
+    "select+kepoi_name,koi_disposition+from+cumulative&format=csv"
+)
 
 
 def sh(args, cwd=ROOT, timeout=3600):
-    env = {**os.environ, "OS_AGENT_NAME": "Claude Code"}   # how this agent shows up in the Egbe dashboard
+    env = {**os.environ, "OS_AGENT_NAME": "Claude Code"}  # how this agent shows up in the Egbe dashboard
     r = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env)
     return r.returncode, (r.stdout + r.stderr)[-4000:]
 
 
 def check_the_checker():
     code, out = sh([PY, "selftest.py"], cwd=EXO, timeout=1800)
-    lines = [l for l in out.splitlines() if "pass" in l or "FAIL" in l or "checks" in l]
+    lines = [line for line in out.splitlines() if "pass" in line or "FAIL" in line or "checks" in line]
     return code == 0, lines
 
 
 def new_answers():
     """Candidates unresolved in the snapshot that NASA has resolved since, with our score for each."""
-    with urllib.request.urlopen(urllib.request.Request(NASA, headers={"User-Agent": "exo-referee loop"}), timeout=120) as r:
-        now = {row["kepoi_name"]: row["koi_disposition"] for row in csv.DictReader(io.StringIO(r.read().decode()))}
+    with urllib.request.urlopen(
+        urllib.request.Request(NASA, headers={"User-Agent": "exo-referee loop"}), timeout=120
+    ) as r:
+        now = {
+            row["kepoi_name"]: row["koi_disposition"]
+            for row in csv.DictReader(io.StringIO(r.read().decode()))
+        }
     ranked = list(csv.DictReader(open(EXO / "runs/unresolved_ranked.csv")))
-    resolved = [(r["kepoi_name"], float(r["p_planet"]), now.get(r["kepoi_name"]))
-                for r in ranked if now.get(r["kepoi_name"]) in ("CONFIRMED", "FALSE POSITIVE")]
-    out = {"checked": len(ranked), "resolved_since_snapshot": len(resolved),
-           "resolved": [{"koi": k, "p_planet": round(p, 3), "now": d} for k, p, d in resolved]}
+    resolved = [
+        (r["kepoi_name"], float(r["p_planet"]), now.get(r["kepoi_name"]))
+        for r in ranked
+        if now.get(r["kepoi_name"]) in ("CONFIRMED", "FALSE POSITIVE")
+    ]
+    out = {
+        "checked": len(ranked),
+        "resolved_since_snapshot": len(resolved),
+        "resolved": [{"koi": k, "p_planet": round(p, 3), "now": d} for k, p, d in resolved],
+    }
     pos = [p for _, p, d in resolved if d == "CONFIRMED"]
     neg = [p for _, p, d in resolved if d == "FALSE POSITIVE"]
-    if pos and neg:   # AUC of our ranking on answers that did not exist when it was made
-        wins = sum((a > b) + .5 * (a == b) for a in pos for b in neg)
+    if pos and neg:  # AUC of our ranking on answers that did not exist when it was made
+        wins = sum((a > b) + 0.5 * (a == b) for a in pos for b in neg)
         out["auc_on_new_answers"] = round(wins / (len(pos) * len(neg)), 3)
     return out
 
 
 def agents_round(proposers: int):
-    code, out = sh([PY, "swarm.py", "--proposers", str(proposers), "--rounds", "1", "--tag", "exo-loop"], cwd=EXO)
+    code, out = sh(
+        [PY, "swarm.py", "--proposers", str(proposers), "--rounds", "1", "--tag", "exo-loop"], cwd=EXO
+    )
     verdicts = []
     for line in open(EXO / "runs/events.jsonl"):
         e = json.loads(line)
         if e.get("tag") == "exo-loop" and e["kind"] == "verdict" and e["ts"] > START:
-            verdicts.append({"verdict": e["verdict"], "claim": e.get("claim", "")[:160],
-                             "val_gain": e.get("val_gain"), "evidence": e.get("public_evidence") or e.get("evidence", "")})
+            verdicts.append(
+                {
+                    "verdict": e["verdict"],
+                    "claim": e.get("claim", "")[:160],
+                    "val_gain": e.get("val_gain"),
+                    "evidence": e.get("public_evidence") or e.get("evidence", ""),
+                }
+            )
         if e.get("tag") == "exo-loop" and e["kind"] == "error" and e["ts"] > START:
             verdicts.append({"verdict": "ERROR", "claim": e.get("error", "")[:160]})
     return code == 0, verdicts
@@ -101,12 +123,14 @@ def report(r: dict) -> Path:
     REPORTS.mkdir(parents=True, exist_ok=True)
     t = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%MZ")
     lines = [f"# Redshift loop, {t}", "", f"Status: **{r['status']}**", ""]
-    lines += ["## Check the checker", *[f"- {l.strip()}" for l in r["selftest"]], ""]
+    lines += ["## Check the checker", *[f"- {line.strip()}" for line in r["selftest"]], ""]
     na = r.get("new_answers")
     if na:
-        lines += ["## New data from NASA",
-                  f"- Unresolved candidates tracked: {na['checked']}",
-                  f"- Resolved by NASA since the 2026-11-22 snapshot: {na['resolved_since_snapshot']}"]
+        lines += [
+            "## New data from NASA",
+            f"- Unresolved candidates tracked: {na['checked']}",
+            f"- Resolved by NASA since the 2026-11-22 snapshot: {na['resolved_since_snapshot']}",
+        ]
         if "auc_on_new_answers" in na:
             lines.append(f"- AUC of our ranking on those new answers: {na['auc_on_new_answers']}")
         lines += [f"  - {x['koi']}: now {x['now']}, we scored {x['p_planet']}" for x in na["resolved"][:20]]
@@ -148,12 +172,19 @@ def main():
 
     path = report(r)
     # hand the report to Egbe: the business's loop plan, reports and checkpoints live there
-    code, out = sh([PY, ".claude/skills/egbe-os-quickstart/scripts/sync-artifacts.py"], timeout=300) \
-        if (ROOT / ".claude/skills/egbe-os-quickstart/scripts/sync-artifacts.py").exists() else (1, "Egbe not installed")
+    code, out = (
+        sh([PY, ".claude/skills/egbe-os-quickstart/scripts/sync-artifacts.py"], timeout=300)
+        if (ROOT / ".claude/skills/egbe-os-quickstart/scripts/sync-artifacts.py").exists()
+        else (1, "Egbe not installed")
+    )
     synced = "synced to Egbe" if code == 0 else "Egbe sync failed: " + out.strip().splitlines()[-1][:160]
     path.write_text(path.read_text() + f"\n## Egbe\n- {synced}\n")
-    state.update(cycles=state.get("cycles", 0) + 1, last_run=datetime.now(timezone.utc).isoformat(),
-                 last_status=r["status"], last_report=str(path.relative_to(ROOT)))
+    state.update(
+        cycles=state.get("cycles", 0) + 1,
+        last_run=datetime.now(timezone.utc).isoformat(),
+        last_status=r["status"],
+        last_report=str(path.relative_to(ROOT)),
+    )
     STATE.write_text(json.dumps(state, indent=1))
     print(path.read_text())
     sys.exit(0 if r["status"] == "ok" else 1)

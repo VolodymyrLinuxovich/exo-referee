@@ -4,6 +4,7 @@ Only the Referee decides what is real.
   ../.venv/bin/python swarm.py --proposers 3 --rounds 4 --redteam        # guarded loop
   ../.venv/bin/python swarm.py --naive --proposers 3 --rounds 4          # naive loop
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,7 +14,6 @@ import os
 import re
 import sys
 import threading
-import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -65,12 +65,16 @@ class LLM:
             self.provider = "claude-code"
         elif model.startswith("claude"):
             import anthropic
+
             self.client, self.provider = anthropic.Anthropic(), "anthropic"
         else:
             from openai import OpenAI
+
             if model.startswith("gemini"):
-                self.client = OpenAI(api_key=os.environ["GEMINI_API_KEY"],
-                                     base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+                self.client = OpenAI(
+                    api_key=os.environ["GEMINI_API_KEY"],
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                )
             else:
                 self.client = OpenAI()
             self.provider = "openai"
@@ -78,23 +82,35 @@ class LLM:
     def chat(self, system: str, user: str) -> str:
         if self.provider == "claude-code":
             import subprocess
+
             env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-            r = subprocess.run(["claude", "-p", "--model", self.model[3:], "--tools", "",
-                                "--append-system-prompt", system],
-                               input=user, capture_output=True, text=True, timeout=900, env=env,
-                               cwd=str(HERE / "runs"))
+            r = subprocess.run(
+                ["claude", "-p", "--model", self.model[3:], "--tools", "", "--append-system-prompt", system],
+                input=user,
+                capture_output=True,
+                text=True,
+                timeout=900,
+                env=env,
+                cwd=str(HERE / "runs"),
+            )
             if r.returncode != 0:
                 raise RuntimeError((r.stderr or r.stdout)[-300:])
             return r.stdout
         if self.provider == "anthropic":
-            with self.client.messages.stream(model=self.model, max_tokens=16000, system=system,
-                                             thinking={"type": "adaptive"},
-                                             messages=[{"role": "user", "content": user}]) as s:
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=16000,
+                system=system,
+                thinking={"type": "adaptive"},
+                messages=[{"role": "user", "content": user}],
+            ) as s:
                 msg = s.get_final_message()
             return "".join(b.text for b in msg.content if b.type == "text")
-        r = self.client.chat.completions.create(model=self.model, max_completion_tokens=16000,
-                                                messages=[{"role": "system", "content": system},
-                                                          {"role": "user", "content": user}])
+        r = self.client.chat.completions.create(
+            model=self.model,
+            max_completion_tokens=16000,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        )
         return r.choices[0].message.content or ""
 
 
@@ -121,8 +137,10 @@ def history(tag: str, k: int = 12) -> str:
         e = json.loads(line)
         if e.get("tag") == tag and e.get("kind") in ("verdict", "naive_verdict"):
             pv = Referee.public_view(e)
-            out.append(f"- {pv.get('claim', '')[:160]} -> {pv.get('verdict')} "
-                       f"(val gain {pv.get('val_gain', float('nan')):+.4f}) {pv.get('evidence', '')[:200]}")
+            out.append(
+                f"- {pv.get('claim', '')[:160]} -> {pv.get('verdict')} "
+                f"(val gain {pv.get('val_gain', float('nan')):+.4f}) {pv.get('evidence', '')[:200]}"
+            )
     return "\n".join(out[-k:]) or "No verdicts yet."
 
 
@@ -138,13 +156,24 @@ class Proposer:
         # research first: what is already known about this focus area (Apify Actor, arXiv)
         query = self.focus.split(":")[0] + " kepler false positive"
         papers = [] if self.args.no_research else priorwork.search([query])
-        log(self.name, "prior_work", exp_id=exp_id, tag=self.args.tag, query=query,
-            results=[{"title": p["title"], "url": p["url"], "published": p.get("published", "")} for p in papers[:6]])
-        user = (f"Your focus area: {self.focus}\n\nPrior work found on arXiv:\n{priorwork.for_prompt(papers)}\n\n"
-                f"Current incumbent model.py:\n```python\n{inc}\n```\n\n"
-                f"Referee verdicts so far (other agents included):\n{history(self.args.tag)}\n\n"
-                "Propose ONE change grounded in real astrophysics that you believe gives a real gain. "
-                "Do not repeat rejected ideas.")
+        log(
+            self.name,
+            "prior_work",
+            exp_id=exp_id,
+            tag=self.args.tag,
+            query=query,
+            results=[
+                {"title": p["title"], "url": p["url"], "published": p.get("published", "")}
+                for p in papers[:6]
+            ],
+        )
+        user = (
+            f"Your focus area: {self.focus}\n\nPrior work found on arXiv:\n{priorwork.for_prompt(papers)}\n\n"
+            f"Current incumbent model.py:\n```python\n{inc}\n```\n\n"
+            f"Referee verdicts so far (other agents included):\n{history(self.args.tag)}\n\n"
+            "Propose ONE change grounded in real astrophysics that you believe gives a real gain. "
+            "Do not repeat rejected ideas."
+        )
         try:
             hyp, code = extract(self.llm.chat(RULES, user))
         except Exception as e:  # noqa: BLE001
@@ -154,24 +183,53 @@ class Proposer:
             log(self.name, "error", exp_id=exp_id, tag=self.args.tag, error="no valid model.py in reply")
             return
         h = hyp.get("hypothesis") or "unnamed change"
-        log(self.name, "hypothesis", exp_id=exp_id, tag=self.args.tag, model=self.llm.model,
-            hypothesis=h, mechanism=hyp.get("mechanism", ""), expected_gain=hyp.get("expected_gain", ""))
+        log(
+            self.name,
+            "hypothesis",
+            exp_id=exp_id,
+            tag=self.args.tag,
+            model=self.llm.model,
+            hypothesis=h,
+            mechanism=hyp.get("mechanism", ""),
+            expected_gain=hyp.get("expected_gain", ""),
+        )
         (HERE / "runs/code").mkdir(exist_ok=True)
         (HERE / f"runs/code/{exp_id}.py").write_text(code)
-        cites = priorwork.check_citations(hyp.get("citations", []), papers[:priorwork.SHOWN])
-        log(self.name, "claim", exp_id=exp_id, tag=self.args.tag, change=h,
-            expected=hyp.get("expected_gain", ""), citations=hyp.get("citations", []), citation_check=cites)
-        self.ref.judge(code, claim=h, agent=self.name, guarded=not self.args.naive,
-                       exp_id=exp_id, tag=self.args.tag)
+        cites = priorwork.check_citations(hyp.get("citations", []), papers[: priorwork.SHOWN])
+        log(
+            self.name,
+            "claim",
+            exp_id=exp_id,
+            tag=self.args.tag,
+            change=h,
+            expected=hyp.get("expected_gain", ""),
+            citations=hyp.get("citations", []),
+            citation_check=cites,
+        )
+        self.ref.judge(
+            code, claim=h, agent=self.name, guarded=not self.args.naive, exp_id=exp_id, tag=self.args.tag
+        )
 
 
 REDTEAM = [
-    ("catalog_name", "Use the catalog designation as a feature",
-     "Objects with a kepler_name entry behave differently; let the model use it.", "+0.02 AUC"),
-    ("lucky_tweak", "Grow the forest from 300 to 320 trees",
-     "Slightly more trees reduce variance.", "+0.001 AUC"),
-    ("robovetter", "Add NASA's vetting score and false-positive flags as expert features",
-     "koi_score and the koi_fpflag_* columns summarize expert vetting; stack them with the model.", "+0.02 AUC"),
+    (
+        "catalog_name",
+        "Use the catalog designation as a feature",
+        "Objects with a kepler_name entry behave differently; let the model use it.",
+        "+0.02 AUC",
+    ),
+    (
+        "lucky_tweak",
+        "Grow the forest from 300 to 320 trees",
+        "Slightly more trees reduce variance.",
+        "+0.001 AUC",
+    ),
+    (
+        "robovetter",
+        "Add NASA's vetting score and false-positive flags as expert features",
+        "koi_score and the koi_fpflag_* columns summarize expert vetting; stack them with the model.",
+        "+0.02 AUC",
+    ),
 ]
 
 
@@ -180,10 +238,19 @@ def redteam(args, ref: Referee):
     for name, h, mech, exp in REDTEAM:
         exp_id = f"rt-{name}-{uuid.uuid4().hex[:4]}"
         code = (HERE / f"redteam/{name}.py").read_text()
-        log("proposer-redteam", "hypothesis", exp_id=exp_id, tag=args.tag, hypothesis=h,
-            mechanism=mech + " (planted red-team claim)", expected_gain=exp)
+        log(
+            "proposer-redteam",
+            "hypothesis",
+            exp_id=exp_id,
+            tag=args.tag,
+            hypothesis=h,
+            mechanism=mech + " (planted red-team claim)",
+            expected_gain=exp,
+        )
         log("proposer-redteam", "claim", exp_id=exp_id, tag=args.tag, change=h, expected=exp)
-        ref.judge(code, claim=h, agent="proposer-redteam", guarded=not args.naive, exp_id=exp_id, tag=args.tag)
+        ref.judge(
+            code, claim=h, agent="proposer-redteam", guarded=not args.naive, exp_id=exp_id, tag=args.tag
+        )
 
 
 def main():
@@ -199,8 +266,16 @@ def main():
     args.models = args.models.split(",")
     args.tag = args.tag or ("exo-naive" if args.naive else "exo")
     ref = Referee(track=args.tag)
-    log("orchestrator", "start", tag=args.tag, domain="exo", proposers=args.proposers,
-        rounds=args.rounds, naive=args.naive, models=args.models)
+    log(
+        "orchestrator",
+        "start",
+        tag=args.tag,
+        domain="exo",
+        proposers=args.proposers,
+        rounds=args.rounds,
+        naive=args.naive,
+        models=args.models,
+    )
     props = [Proposer(i + 1, args, ref) for i in range(args.proposers)]
     threads = []
     if args.redteam:
