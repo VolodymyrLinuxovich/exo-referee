@@ -56,6 +56,15 @@ agent's own timer left on screen. A catalog-name cheat gets **LEAK** in 5 second
 Kepler Data Validation paper, cites it, and is **PROMOTED at +0.0156 AUC on hidden stars**, 52 seconds end to end.
 Run it yourself with `demo/live_agent.py`. [Full video (MP4)](docs/real-demo.mp4).
 
+## Explore the Kepler Sky
+
+[![The Kepler field with every signal at its real position. Clicking a star flies into its system: the star in its real colour, every planet orbiting at its real relative period, and the transit light curve.](docs/explore.gif)](docs/explore.mp4)
+
+[redshift.egbe.app/explore.html](https://redshift.egbe.app/explore.html): all 9,564 Kepler signals at their real sky
+positions (the gaps are the telescope's camera tiles). Click a star and the view flies in: the star in its real colour,
+every planet of that system orbiting at its real relative period, and the dip a telescope records as each one transits.
+Unresolved candidates show Redshift's score, a pointer for follow-up and not a discovery. Works with mouse, touch and pinch.
+
 ## How It Works, in 20 Seconds
 
 [![Claims fly through five gates. Cheats explode at the gate that catches them, real gains come out promoted. Then a real planet transit next to a background binary whose light center shifts.](docs/demo.gif)](docs/demo.mp4)
