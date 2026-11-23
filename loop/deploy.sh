@@ -19,11 +19,11 @@ OS_URL=$(grep '^OS_URL=' .env.local | cut -d= -f2-)
 
 # 1. the site, plus a tiny non-root web server on 8080
 mkdir -p "$PUB"
-cp site/index.html site/data.json site/followup.json "$PUB"/
+cp site/index.html site/data.json site/followup.json site/explore.html site/explore.json "$PUB"/
 cp demo/compare.html "$PUB"/
 cat > "$PUB/Dockerfile" <<'EOF'
 FROM nginxinc/nginx-unprivileged:alpine
-COPY index.html data.json followup.json compare.html /usr/share/nginx/html/
+COPY index.html data.json followup.json compare.html explore.html explore.json /usr/share/nginx/html/
 EXPOSE 8080
 EOF
 printf 'Dockerfile\n.git\n' > "$PUB/.dockerignore"
