@@ -62,7 +62,7 @@ Run it yourself with `demo/live_agent.py`. [Full video (MP4)](docs/real-demo.mp4
 
 [redshift.egbe.app/explore.html](https://redshift.egbe.app/explore.html): all 9,564 Kepler signals at their real sky
 positions (the gaps are the telescope's camera tiles). Click a star and the view flies in: the star in its real colour,
-every planet of that system orbiting at its real relative period, and the dip a telescope records as each one transits.
+every planet of that system orbiting in 3D at its real relative period (drag to turn it), and the dip a telescope records as each one transits. Unresolved candidates are orange.
 Unresolved candidates show Redshift's score, a pointer for follow-up and not a discovery. Works with mouse, touch and pinch.
 
 ## How It Works, in 20 Seconds
