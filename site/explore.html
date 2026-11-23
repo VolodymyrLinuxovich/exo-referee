@@ -18,7 +18,7 @@
         --ink-3: #6d7588;
         --line: rgba(255, 255, 255, 0.1);
         --planet: #cfe3ff;
-        --cand: #ffc56b;
+        --cand: #ff9a3d;
         --fp: #ff7a59;
         --good: #5fd39a;
         --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -289,7 +289,7 @@
         display: block;
         height: 100%;
         width: 0;
-        background: linear-gradient(90deg, #ffc56b, #5fd39a);
+        background: linear-gradient(90deg, #ff9a3d, #5fd39a);
         transition: width 1.1s cubic-bezier(0.2, 0.8, 0.2, 1);
       }
       #score p {
@@ -373,6 +373,11 @@
           display: none;
         }
       }
+      /* the 3D system can be turned by dragging */
+      #orbit {
+        cursor: grab;
+        touch-action: none;
+      }
     </style>
   </head>
   <body>
@@ -436,7 +441,7 @@
       "use strict";
       const DPR = Math.min(devicePixelRatio || 1, 2);
 
-      const COL = { 0: [207, 227, 255], 1: [255, 122, 89], 2: [255, 197, 107] };
+      const COL = { 0: [207, 227, 255], 1: [255, 122, 89], 2: [255, 154, 61] };
 
       const NAME = { 0: "CONFIRMED PLANET", 1: "FALSE POSITIVE", 2: "UNRESOLVED CANDIDATE" };
 
@@ -933,151 +938,250 @@
         }
       }
 
+      // The camera for the 3D system view. It circles slowly on its own, and a drag rotates it.
+      const view = { azimuth: 0.6, elevation: 0.32, dragging: null, last: 0 };
+
+      oc.addEventListener("pointerdown", e => {
+        oc.setPointerCapture(e.pointerId);
+        view.dragging = { x: e.clientX, y: e.clientY, azimuth: view.azimuth, elevation: view.elevation };
+      });
+
+      oc.addEventListener("pointermove", e => {
+        if (!view.dragging) {
+          return;
+        }
+        view.azimuth = view.dragging.azimuth + (e.clientX - view.dragging.x) * 0.008;
+
+        // Keep the view a little above the orbital plane, so transits stay visible.
+        const tilt = view.dragging.elevation + (e.clientY - view.dragging.y) * 0.005;
+        view.elevation = Math.max(0.05, Math.min(1.1, tilt));
+      });
+
+      oc.addEventListener("pointerup", () => {
+        view.dragging = null;
+      });
+
+      // Place a point of the orbital plane (x, z) on screen. Returns screen x, y, a perspective scale,
+      // and depth (positive means in front of the star, toward the viewer).
+      function project(x, z, cx, cy, distance) {
+        const ca = Math.cos(view.azimuth);
+        const sa = Math.sin(view.azimuth);
+        const rx = x * ca - z * sa;
+        const rz = x * sa + z * ca;
+        const depth = rz * Math.cos(view.elevation);
+        const scale = distance / (distance - depth);
+        return { x: cx + rx * scale, y: cy - rz * Math.sin(view.elevation) * scale, scale, depth };
+      }
+
+      // Planet colours: candidates that would be new planets are orange, hot worlds glow red,
+      // everything else is a cool blue-white.
+      function planetColours(q) {
+        if (q.d === 2) {
+          return ["#ffd2a8", "#ff9a3d", "#5a2306"];
+        }
+        if ((q.T || 300) > 900) {
+          return ["#ffd2b0", "#d9764a", "#3d1407"];
+        }
+        return ["#e6f2ff", "#8fb6e6", "#132a45"];
+      }
+
       function drawSystem(now) {
         if (!sysOn) {
           sysRunning = false;
           return;
         }
-        const o = cur,
-          sib = SYS[o.sys] || [o],
-          cx = OW / 2,
-          cy = OH * 0.42;
+
+        const o = cur;
+        const sib = SYS[o.sys] || [o];
+        const cx = OW / 2;
+        const cy = OH * 0.42;
         ox.clearRect(0, 0, OW, OH);
+
+        // Slow automatic turn when nobody is dragging.
+        if (!view.dragging && view.last) {
+          view.azimuth += (now - view.last) * 0.00006;
+        }
+        view.last = now;
+
+        // A few fixed background stars.
         ox.globalAlpha = 0.6;
         for (let i = 0; i < 120; i++) {
-          const sx2 = (i * 97.13) % OW,
-            sy2 = (i * 53.71) % (OH * 0.8);
           ox.fillStyle = "#fff";
-          ox.fillRect(sx2, sy2, 0.9, 0.9);
+          ox.fillRect((i * 97.13) % OW, (i * 53.71) % (OH * 0.8), 0.9, 0.9);
         }
         ox.globalAlpha = 1;
 
-        // the star, sized by its real radius and coloured by its real temperature
-        const Rstar = Math.min(OW, OH) * 0.11 * Math.min(1.6, Math.max(0.6, Math.sqrt(o.Rs || 1)));
+        // The star: sized by its real radius, coloured by its real temperature.
+        const Rstar = Math.min(OW, OH) * 0.1 * Math.min(1.6, Math.max(0.6, Math.sqrt(o.Rs || 1)));
         const [r, g, b] = starRGB(o.Ts);
+
+        // Orbit sizes follow Kepler's third law (a grows like P^2/3); inner planets lap faster.
+        const Pmax = Math.max(...sib.map(q => q.P || 1));
+        const Amax = Math.min(OW * 0.44, Rstar * 5.2);
+        const Amin = Rstar * 2.3;
+        const distance = Amax * 4.5;
+
+        const bodies = sib.map(q => {
+          const A = Amin + (Amax - Amin) * Math.pow((q.P || 1) / Pmax, 2 / 3);
+          const lap = 3200 + 5200 * Math.pow((q.P || 1) / Pmax, 1 / 3);
+          const angle = ((now / lap + q.ph) % 1) * 2 * Math.PI;
+          const at = project(A * Math.cos(angle), A * Math.sin(angle), cx, cy, distance);
+
+          // Planet size relative to its star, exaggerated so small worlds stay visible.
+          const size = ((Rstar * ((q.R || 1) / 109.1)) / Math.max(0.3, o.Rs || 1)) * 6;
+          const rp = Math.max(3, Math.min(Rstar * 0.4, size)) * at.scale;
+
+          return { q, A, at, rp, selected: q === o };
+        });
+
+        // Orbits as projected rings: the far half is drawn behind the star, the near half in front.
+        const drawOrbit = (A, selected, near) => {
+          ox.strokeStyle = selected ? "rgba(207,227,255,.45)" : "rgba(255,255,255,.12)";
+          ox.lineWidth = selected ? 1.3 : 1;
+          ox.beginPath();
+          let pen = false;
+          for (let i = 0; i <= 96; i++) {
+            const t = (i / 96) * 2 * Math.PI;
+            const pt = project(A * Math.cos(t), A * Math.sin(t), cx, cy, distance);
+            if (pt.depth >= 0 === near) {
+              if (pen) {
+                ox.lineTo(pt.x, pt.y);
+              } else {
+                ox.moveTo(pt.x, pt.y);
+              }
+              pen = true;
+            } else {
+              pen = false;
+            }
+          }
+          ox.stroke();
+        };
+
+        // A planet is lit on the side facing its star and dark on the far side.
+        const drawPlanet = body => {
+          const { at, rp, q, selected } = body;
+          const dx = cx - at.x;
+          const dy = cy - at.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const [light, mid, dark] = planetColours(q);
+          const shade = ox.createRadialGradient(
+            at.x + (dx / len) * rp * 0.5,
+            at.y + (dy / len) * rp * 0.5,
+            rp * 0.1,
+            at.x,
+            at.y,
+            rp * 1.05
+          );
+          shade.addColorStop(0, light);
+          shade.addColorStop(0.55, mid);
+          shade.addColorStop(1, dark);
+          ox.fillStyle = shade;
+          ox.beginPath();
+          ox.arc(at.x, at.y, rp, 0, 2 * Math.PI);
+          ox.fill();
+
+          if (selected) {
+            ox.strokeStyle = "rgba(255,255,255,.75)";
+            ox.lineWidth = 1;
+            ox.beginPath();
+            ox.arc(at.x, at.y, rp + 5, 0, 2 * Math.PI);
+            ox.stroke();
+          }
+        };
+
+        // Glow behind everything.
         const glow = ox.createRadialGradient(cx, cy, Rstar * 0.2, cx, cy, Rstar * 3.2);
         glow.addColorStop(0, `rgba(${r},${g},${b},.55)`);
         glow.addColorStop(1, "rgba(0,0,0,0)");
         ox.fillStyle = glow;
         ox.beginPath();
-        ox.arc(cx, cy, Rstar * 3.2, 0, 6.283);
+        ox.arc(cx, cy, Rstar * 3.2, 0, 2 * Math.PI);
         ox.fill();
 
-        // every planet of this star: orbit size from Kepler's third law (a ~ P^2/3), inner planets lap faster
-        const Pmax = Math.max(...sib.map(q => q.P || 1));
-        const Amax = Math.min(OW * 0.46, Rstar * 5.2),
-          Amin = Rstar * 2.3; // wide enough that transits are brief, as real ones are
-        const bodies = sib.map(q => {
-          const A = Amin + (Amax - Amin) * Math.pow((q.P || 1) / Pmax, 2 / 3),
-            Bm = A * 0.16;
-          const lap = 3200 + 5200 * Math.pow((q.P || 1) / Pmax, 1 / 3);
-          const ang = ((now / lap + q.ph) % 1) * 6.283;
-          const rp = Math.max(
-            3,
-            Math.min(Rstar * 0.4, ((Rstar * ((q.R || 1) / 109.1)) / Math.max(0.3, o.Rs || 1)) * 6)
-          );
-          return {
-            q,
-            A,
-            Bm,
-            x: cx + A * Math.cos(ang),
-            y: cy + Bm * Math.sin(ang),
-            front: Math.sin(ang) > 0,
-            rp,
-            sel: q === o,
-          };
-        });
-        for (const p of bodies) {
-          ox.strokeStyle = p.sel ? "rgba(207,227,255,.4)" : "rgba(255,255,255,.1)";
-          ox.lineWidth = p.sel ? 1.3 : 1;
-          ox.beginPath();
-          ox.ellipse(cx, cy, p.A, p.Bm, 0, 0, 6.283);
-          ox.stroke();
-        }
-        const planet = p => {
-          const hot = (p.q.T || 300) > 900,
-            pg = ox.createRadialGradient(p.x - p.rp * 0.4, p.y - p.rp * 0.4, p.rp * 0.1, p.x, p.y, p.rp);
-          pg.addColorStop(0, hot ? "#ffd2b0" : "#dbeeff");
-          pg.addColorStop(1, hot ? "#5a2410" : "#18324f");
-          ox.globalAlpha = p.sel ? 1 : 0.75;
-          ox.fillStyle = pg;
-          ox.beginPath();
-          ox.arc(p.x, p.y, p.rp, 0, 6.283);
-          ox.fill();
-          ox.globalAlpha = 1;
-          if (p.sel) {
-            ox.strokeStyle = "rgba(255,255,255,.7)";
-            ox.lineWidth = 1;
-            ox.beginPath();
-            ox.arc(p.x, p.y, p.rp + 5, 0, 6.283);
-            ox.stroke();
-          }
-        };
-        bodies.filter(p => !p.front).forEach(planet);
-        const sg = ox.createRadialGradient(cx - Rstar * 0.3, cy - Rstar * 0.3, 0, cx, cy, Rstar);
-        sg.addColorStop(0, "#fffdf8");
-        sg.addColorStop(0.6, `rgb(${r},${g},${b})`);
-        sg.addColorStop(1, `rgb(${Math.round(r * 0.7)},${Math.round(g * 0.6)},${Math.round(b * 0.5)})`);
-        ox.fillStyle = sg;
+        // Back to front: far orbits and planets, the star, then near orbits and planets.
+        bodies.forEach(body => drawOrbit(body.A, body.selected, false));
+        bodies
+          .filter(body => body.at.depth < 0)
+          .sort((a, b) => a.at.depth - b.at.depth)
+          .forEach(drawPlanet);
+
+        const surface = ox.createRadialGradient(cx - Rstar * 0.3, cy - Rstar * 0.3, 0, cx, cy, Rstar);
+        surface.addColorStop(0, "#fffdf8");
+        surface.addColorStop(0.6, `rgb(${r},${g},${b})`);
+        surface.addColorStop(1, `rgb(${Math.round(r * 0.7)},${Math.round(g * 0.6)},${Math.round(b * 0.5)})`);
+        ox.fillStyle = surface;
         ox.beginPath();
-        ox.arc(cx, cy, Rstar, 0, 6.283);
+        ox.arc(cx, cy, Rstar, 0, 2 * Math.PI);
         ox.fill();
 
-        // transits: a planet in front of the star shows as its shadow and dims the light curve
+        bodies.forEach(body => drawOrbit(body.A, body.selected, true));
+
+        // Near planets: over the star's disk they are a transit, a dark silhouette that dims the light.
         let dim = 0;
-        for (const p of bodies.filter(p => p.front)) {
-          const onDisk = Math.abs(p.x - cx) < Rstar + p.rp;
-          if (onDisk) {
+        const near = bodies.filter(body => body.at.depth >= 0).sort((a, b) => a.at.depth - b.at.depth);
+        for (const body of near) {
+          const offset = Math.hypot(body.at.x - cx, body.at.y - cy);
+          if (offset < Rstar + body.rp) {
             ox.fillStyle = "#04060c";
             ox.beginPath();
-            ox.arc(p.x, p.y, p.rp, 0, 6.283);
+            ox.arc(body.at.x, body.at.y, body.rp, 0, 2 * Math.PI);
             ox.fill();
-            const overlap = Math.max(0, Math.min(1, (Rstar + p.rp - Math.abs(p.x - cx)) / (2 * p.rp)));
-            dim += overlap * Math.min(0.6, Math.max(0.06, Math.sqrt((p.q.dep || 500) / 1e6) * 3));
+
+            const covered = Math.max(0, Math.min(1, (Rstar + body.rp - offset) / (2 * body.rp)));
+            dim += covered * Math.min(0.6, Math.max(0.06, Math.sqrt((body.q.dep || 500) / 1e6) * 3));
           } else {
-            planet(p);
+            drawPlanet(body);
           }
         }
+
+        // The light curve: the starlight a telescope would record, scrolling as the planets move.
         curve.push(1 - Math.min(0.8, dim));
         if (curve.length > 360) {
           curve.shift();
         }
-        const top = OH * 0.74,
-          hh = OH * 0.14,
-          l0 = OW * 0.1,
-          l1 = OW * 0.9;
+
+        const top = OH * 0.74;
+        const hh = OH * 0.14;
+        const l0 = OW * 0.1;
+        const l1 = OW * 0.9;
         ox.strokeStyle = "rgba(255,255,255,.08)";
         ox.beginPath();
         ox.moveTo(l0, top);
         ox.lineTo(l1, top);
         ox.stroke();
-        ox.strokeStyle = o.d === 1 ? "#ff7a59" : o.d === 2 ? "#ffc56b" : "#5fd39a";
+
+        ox.strokeStyle = o.d === 1 ? "#ff7a59" : o.d === 2 ? "#ff9a3d" : "#5fd39a";
         ox.lineWidth = 2;
         ox.beginPath();
         curve.forEach((v, i) => {
-          const x = l0 + ((l1 - l0) * i) / 359,
-            y = top + (1 - v) * hh * 1.4 + Math.sin(i * 1.7) * 0.8;
-          i ? ox.lineTo(x, y) : ox.moveTo(x, y);
+          const x = l0 + ((l1 - l0) * i) / 359;
+          const y = top + (1 - v) * hh * 1.4 + Math.sin(i * 1.7) * 0.8;
+          if (i) {
+            ox.lineTo(x, y);
+          } else {
+            ox.moveTo(x, y);
+          }
         });
         ox.stroke();
+
         ox.fillStyle = "#6d7588";
         ox.font = "400 12px Geist, sans-serif";
-        ox.fillText(
+        const caption =
           sib.length > 1
-            ? `starlight the telescope records, ${sib.length} signals around this star`
-            : "starlight the telescope records",
-          l0,
-          top + hh * 1.5 + 18
-        );
-        const dipText = o.dep ? `real dip ${fmt(o.dep, 0)} parts per million, drawn larger` : "";
+            ? `starlight the telescope records, ${sib.length} signals around this star. Drag to turn the system.`
+            : "starlight the telescope records. Drag to turn the system.";
+        ox.fillText(caption, l0, top + hh * 1.5 + 18);
+
         // On narrow screens the second caption goes on its own line, so the two do not overlap.
-        if (OW < 600) {
+        const dipText = o.dep ? `real dip ${fmt(o.dep, 0)} parts per million, drawn larger` : "";
+        if (OW < 700) {
           ox.fillText(dipText, l0, top + hh * 1.5 + 36);
         } else {
           ox.textAlign = "right";
-          ox.fillText(dipText, l1, top + hh * 1.5 + 18);
+          ox.fillText(dipText, l1, top + hh * 1.5 + 36);
           ox.textAlign = "left";
         }
+
         requestAnimationFrame(drawSystem);
       }
 
