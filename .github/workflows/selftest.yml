@@ -12,7 +12,7 @@ jobs:
       - name: Python environment
         run: |
           uv venv .venv --python 3.12
-          uv pip install --python .venv/bin/python numpy pandas pyarrow scikit-learn scipy anthropic openai python-dotenv
+          uv pip install --python .venv/bin/python numpy pandas pyarrow scikit-learn scipy anthropic openai python-dotenv pytest
       - name: C++ statistics
         run: make -C exo/native
       - name: NASA Kepler data (pinned snapshot, so verdicts cannot drift with archive updates)
@@ -22,6 +22,8 @@ jobs:
           gunzip -c data/snapshot/koi_2026-11-22.csv.gz > data/raw/koi.csv
           echo "a85348f20082d24f  expected sha256 prefix"; shasum -a 256 data/raw/koi.csv
           ../.venv/bin/python prep.py
+      - name: Unit tests
+        run: .venv/bin/python -m pytest tests -q
       - name: Self-test
         working-directory: exo
         run: ../.venv/bin/python selftest.py

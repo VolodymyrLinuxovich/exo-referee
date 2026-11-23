@@ -316,6 +316,7 @@ cd ..
 .venv/bin/python demo/cheat.py name --fresh                          # live: plant a cheat, watch LEAK
 .venv/bin/python demo/followup.py                                    # what each loop is worth
 .venv/bin/python exo/fastci.py                                       # C++ vs NumPy check
+.venv/bin/python -m pytest tests -q                                  # unit tests: statistics, what agents see, cache, citations
 .venv/bin/python exo/selftest.py                                     # check the checker, cold (add --quick to reuse cache)
 ```
 
