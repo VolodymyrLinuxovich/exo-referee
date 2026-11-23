@@ -23,6 +23,8 @@ statistics run in **C++**.
 
 <br/>
 
+<img src="docs/first-place.svg" alt="1st place at Sundai, RSI House, November 22, 2026" width="520">
+
 <img src="docs/hero.png" alt="The Redshift site: Self-improving AI grades its own work, over a rotating ice giant" width="760">
 
 <br/>
@@ -34,6 +36,7 @@ statistics run in **C++**.
 **Hackathon:** Sundai at RSI House<br/>
 **Challenge:** Build tools that help your projects operate and self-improve autonomously, and put the human out of the loop<br/>
 **Built:** November 22, 2026<br/>
+**Result:** 1st place<br/>
 **Team:** Volodymyr Borysenko<br/>
 **Live demo:** [redshift.egbe.app](https://redshift.egbe.app) (Egbe hosting, redeployed by the loop) and [spectre-planets.vercel.app](https://spectre-planets.vercel.app)
 
