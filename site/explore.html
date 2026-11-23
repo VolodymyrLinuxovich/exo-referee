@@ -132,6 +132,65 @@
         font-weight: 400;
       }
 
+      #vs {
+        position: fixed;
+        left: 50%;
+        top: 74px;
+        transform: translateX(-50%);
+        z-index: 5;
+        text-align: center;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 4px;
+        gap: 4px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(10, 14, 26, 0.7);
+        backdrop-filter: blur(10px);
+        pointer-events: auto;
+      }
+      .seg button {
+        border: 0;
+        border-radius: 999px;
+        padding: 8px 16px;
+        background: transparent;
+        color: var(--ink-2);
+        font: 500 14px var(--sans);
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+      }
+      .seg button.on {
+        background: #fff;
+        color: #0a0e1a;
+      }
+      #vsay {
+        margin: 14px auto 0;
+        max-width: 560px;
+        min-height: 3em;
+        font-size: 17px;
+        line-height: 1.45;
+        color: var(--ink);
+        text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
+      }
+      #vsay .key {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      #vsay b {
+        font-weight: 600;
+      }
+      #vsay .bad {
+        color: var(--fp);
+      }
+      #vsay .ok {
+        color: var(--good);
+      }
+      body.sys-open #vs,
       body.sys-open #hint,
       body.sys-open header {
         opacity: 0;
@@ -402,10 +461,19 @@
       </div>
     </header>
 
+    <div id="vs">
+      <div class="seg" role="tablist" aria-label="Compare">
+        <button class="on" data-m="all">The whole field</button
+        ><button data-m="naive">Without Redshift</button
+        ><button data-m="guarded">With Redshift</button>
+      </div>
+      <p id="vsay"></p>
+    </div>
+
     <div id="hint">
       <span class="say"
-        ><span id="count">9,564</span> real signals from NASA's Kepler telescope, at their true
-        positions.</span
+        ><span id="count">9,564</span> real signals from NASA's Kepler telescope, near their real
+        positions in the sky.</span
       >
       <button class="btn solid" id="maybe">Show one that might be real</button
       ><button class="btn" id="random">Surprise me</button>
@@ -484,6 +552,31 @@
       // RA/Dec to a flat plane around the field centre (RA scaled by cos Dec)
       const P = o => [-(o.ra - 290.7) * Math.cos((44.5 * Math.PI) / 180), -(o.dec - 44.5)];
 
+      // Kepler's camera is 21 square detector modules with gaps between them, so the raw field looks like a grid of tiles.
+      // Each star gets a small fixed nudge (seeded by its name, so it never moves between visits) that blurs the gaps.
+      const SPREAD = 0.75;
+
+      function seeded(name) {
+        let h = 2166136261;
+        for (let i = 0; i < name.length; i++) {
+          h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+        }
+        return () => {
+          h = Math.imul(h ^ (h >>> 15), 2246822507);
+          h = Math.imul(h ^ (h >>> 13), 3266489909);
+          h ^= h >>> 16;
+          return ((h >>> 0) + 0.5) / 4294967296;
+        };
+      }
+
+      function spread(o) {
+        const [x, y] = P(o);
+        const rnd = seeded(o.n);
+        const r = Math.sqrt(-2 * Math.log(rnd())) * SPREAD;
+        const a = rnd() * 6.283;
+        return [x + r * Math.cos(a), y + r * Math.sin(a)];
+      }
+
       function toScreen(o) {
         const [x, y] = o.xy;
         return [W / 2 + (x * fit.s - cam.x) * cam.s, H / 2 + (y * fit.s - cam.y) * cam.s];
@@ -507,6 +600,11 @@
           sx.fillRect(s.x, s.y, s.r, s.r);
         }
         sx.globalAlpha = 1;
+
+        if (mode !== "all") {
+          drawCompare(now);
+          return;
+        }
 
         // Draw false positives first and planets last, so real planets are never hidden under a red dot.
         for (const d of [1, 2, 0]) {
@@ -543,6 +641,124 @@
           sx.beginPath();
           sx.arc(x, y, 9 + 2 * Math.sin(now / 200), 0, 6.283);
           sx.stroke();
+        }
+      }
+
+      /* ---------------- without Redshift vs with Redshift ---------------- */
+      // Each loop's final model looks at the 1,505 hidden test stars (answer columns removed, the way a new
+      // candidate arrives) and picks as many as there are real planets. Data: demo/skycompare.py.
+      let mode = "all",
+        VS = null;
+
+      function drawCompare(now) {
+        // the rest of the field, faint, so the eye goes to the picks
+        sx.fillStyle = "rgba(160,180,220,.13)";
+        for (const o of K) {
+          if (o.vs) {
+            continue;
+          }
+          const [x, y] = toScreen(o);
+          sx.fillRect(x - 0.7, y - 0.7, 1.4, 1.4);
+        }
+        const rad = Math.min(2.4, Math.max(1, Math.sqrt(cam.s))) * 1.5;
+        const pulse = 0.6 + 0.4 * Math.sin(now / 260);
+        // good picks first, mistakes on top
+        for (const pass of [0, 1]) {
+          for (const o of K) {
+            if (!o.vs || !o.vs[mode]) {
+              continue;
+            }
+            const wrong = o.vs.real === 0;
+            if (wrong !== (pass === 1)) {
+              continue;
+            }
+            const [x, y] = toScreen(o);
+            if (wrong) {
+              sx.fillStyle = "rgba(255,90,70,.95)";
+              sx.beginPath();
+              sx.arc(x, y, rad * 1.3, 0, 6.283);
+              sx.fill();
+              sx.strokeStyle = `rgba(255,90,70,${0.55 * pulse})`;
+              sx.lineWidth = 1.4;
+              sx.beginPath();
+              sx.arc(x, y, rad * 3.4, 0, 6.283);
+              sx.stroke();
+            } else {
+              sx.fillStyle = "rgba(207,227,255,.85)";
+              sx.beginPath();
+              sx.arc(x, y, rad, 0, 6.283);
+              sx.fill();
+            }
+          }
+        }
+      }
+
+      function sayMode() {
+        const el = document.getElementById("vsay");
+        if (mode === "all" || !VS) {
+          el.innerHTML = "";
+          return;
+        }
+        const n = VS.wrong[mode];
+        const key = `<br><span class="key">White: real planets it picked. Red: false positives it called planets.</span>`;
+        if (mode === "naive") {
+          el.innerHTML = `An AI loop improving itself with no referee. It grades itself a near perfect <b>0.9999</b>.
+            Of the <b>${VS.k}</b> stars it calls planets, <b class="bad">${n} are false positives</b>.${key}`;
+        } else {
+          el.innerHTML = `The same agents, but every change has to pass the Referee first.
+            Of the <b>${VS.k}</b> stars it calls planets, only <b class="ok">${n} are false positives</b>.${key}`;
+        }
+      }
+
+      function setMode(m) {
+        mode = m;
+        for (const b of document.querySelectorAll(".seg button")) {
+          b.classList.toggle("on", b.dataset.m === m);
+        }
+        document.querySelector(".legend").style.opacity = m === "all" ? 1 : 0.25;
+        sayMode();
+      }
+
+      for (const b of document.querySelectorAll(".seg button")) {
+        b.onclick = () => setMode(b.dataset.m);
+      }
+
+      // explore.html?m=without or ?m=with opens straight on a comparison, for links in the deck and README
+      const startMode = { without: "naive", with: "guarded" }[new URLSearchParams(location.search).get("m")];
+      if (startMode) {
+        setMode(startMode);
+      }
+
+      fetch("skycompare.json")
+        .then(r => r.json())
+        .then(d => {
+          const byName = {};
+          for (const [n, real, naive, guarded] of d.rows) {
+            byName[n] = { real, naive, guarded };
+          }
+          const wrong = { naive: 0, guarded: 0 };
+          for (const v of Object.values(byName)) {
+            if (v.real === 0) {
+              wrong.naive += v.naive;
+              wrong.guarded += v.guarded;
+            }
+          }
+          VS = { byName, k: d.k, wrong };
+          attachVS();
+          sayMode();
+        })
+        .catch(err => {
+          document.getElementById("vs").style.display = "none";
+          console.error(err);
+        });
+
+      // the sky data and the comparison load in parallel; join them once both are here
+      function attachVS() {
+        if (!VS || !K.length) {
+          return;
+        }
+        for (const o of K) {
+          o.vs = VS.byName[o.n] || null;
         }
       }
 
@@ -1200,7 +1416,7 @@
             for (const c of d.cols) {
               o[c] = r[ix[c]];
             }
-            o.xy = P(o);
+            o.xy = spread(o);
             o.ph = Math.random() * 6.283;
             o.size = o.d === 1 ? 1.1 : Math.min(3.2, 1.1 + Math.log10((o.R || 1) + 1) * 1.3);
             o.sys = o.n.split(".")[0];
@@ -1223,6 +1439,7 @@
             );
           }
           document.getElementById("count").textContent = K.length.toLocaleString("en-US");
+          attachVS();
           size();
           startSky();
         })
