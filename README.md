@@ -46,6 +46,16 @@ statistics run in **C++**.
 
 ---
 
+## Live, on the Real System
+
+[![The real Redshift system in a terminal: a catalog-name cheat gets LEAK, a copied vetting score gets PRIOR, the self-test passes 8 of 8, then a real Claude agent researches through the Apify Actor and is PROMOTED at +0.0156 AUC on hidden stars.](docs/real-demo.gif)](docs/real-demo.mp4)
+
+Recorded from the real system, not a mockup: every line is the commands' own output, long waits shortened and the
+agent's own timer left on screen. A catalog-name cheat gets **LEAK** in 5 seconds, a copied vetting score gets
+**PRIOR**, the self-test passes 8 of 8, then a real Claude agent asks the Apify Actor for prior work, finds NASA's
+Kepler Data Validation paper, cites it, and is **PROMOTED at +0.0156 AUC on hidden stars**, 52 seconds end to end.
+Run it yourself with `demo/live_agent.py`. [Full video (MP4)](docs/real-demo.mp4).
+
 ## How It Works, in 20 Seconds
 
 [![Claims fly through five gates. Cheats explode at the gate that catches them, real gains come out promoted. Then a real planet transit next to a background binary whose light center shifts.](docs/demo.gif)](docs/demo.mp4)

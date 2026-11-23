@@ -48,6 +48,8 @@ model.py interface (keep it exactly):
   odd-even depth significance koi_bin_oedp_sig, fitted stellar density koi_srho, measurement errors)
   and META["other"] (metallicity, magnitudes, sky position, koi_count = number of candidates on the star).
 - train_df has those columns plus kepoi_name, kepid and label. Many values are NaN: handle them.
+- Engineered features can be entirely NaN in a fold. Drop all-NaN columns before fitting: HistGradientBoosting
+  crashes on them ("window shape cannot be larger than input array shape").
 - Packages: numpy, pandas, scikit-learn, scipy only. No network, no file writes. Must run in under 2 minutes on CPU.
 - The Referee judges with 3 seeds, a label-shuffle check, a check that blanks every light-curve measurement,
   and a hidden fold of stars you never see. Gains that are not real physics will be rejected.
