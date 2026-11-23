@@ -401,8 +401,26 @@
       #close {
         position: absolute;
         top: 22px;
-        right: 26px;
+        left: 26px;
         z-index: 6;
+      }
+
+      /* the arrow on both back buttons slides left on hover, so it reads as "go back" */
+      .arrow {
+        display: inline-block;
+        font-size: 18px;
+        line-height: 1;
+        transition: transform 0.2s ease;
+      }
+
+      .back .arrow {
+        margin-right: 2px;
+        color: var(--ink-2);
+      }
+
+      .back:hover .arrow,
+      #close:hover .arrow {
+        transform: translateX(-3px);
       }
       @media (max-width: 880px) {
         #sys {
@@ -446,7 +464,7 @@
     ></canvas>
 
     <header>
-      <a class="logo" href="index.html"><i></i>Redshift</a>
+      <a class="logo back" href="index.html" aria-label="Back to the Redshift home page"><span class="arrow">&larr;</span><i></i>Redshift</a>
       <h1>The Kepler field. <em>Click a star.</em></h1>
       <div class="legend">
         <button class="chip" data-d="0" style="--c: var(--planet)">
@@ -481,7 +499,7 @@
     <div id="tip"></div>
 
     <section id="sys" aria-live="polite">
-      <button class="btn" id="close">Back to the sky</button>
+      <button class="btn" id="close" aria-label="Back to the sky"><span class="arrow">&larr;</span> Back to the sky</button>
       <div id="stage"><canvas id="orbit"></canvas></div>
       <div id="info">
         <div class="status" id="status"></div>
